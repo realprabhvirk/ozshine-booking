@@ -46,4 +46,5 @@ export interface Booking {
 
 export interface BookingWithService extends Booking {
   service: Pick<Service, "id" | "name" | "price_from"> | null;
+  vehicle: Pick<Vehicle, "id" | "rego"> | null;
 }

@@ -4,7 +4,13 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Service } from "@/lib/supabase/types";
 
-export function BookingSection({ services }: { services: Service[] }) {
+export function BookingSection({
+  services,
+  onWantLogin,
+}: {
+  services: Service[];
+  onWantLogin: () => void;
+}) {
   const [supabase] = useState(() => createClient());
 
   const [name, setName] = useState("");
@@ -14,6 +20,8 @@ export function BookingSection({ services }: { services: Service[] }) {
   const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
+  const [saveDetails, setSaveDetails] = useState(false);
+  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState<{
@@ -21,6 +29,7 @@ export function BookingSection({ services }: { services: Service[] }) {
     serviceName: string;
     date: string;
     time: string;
+    accountNote?: string;
   } | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -29,6 +38,13 @@ export function BookingSection({ services }: { services: Service[] }) {
 
     if (!name.trim() || !phone.trim() || !serviceId || !date || !time) {
       setError("Name, phone, service, date, and time are required.");
+      return;
+    }
+
+    if (saveDetails && (!email.trim() || password.length < 6)) {
+      setError(
+        "To save your details, enter an email and a password (at least 6 characters)."
+      );
       return;
     }
 
@@ -108,7 +124,38 @@ export function BookingSection({ services }: { services: Service[] }) {
         throw new Error("Couldn't submit your booking. Please try again.");
       }
 
-      setConfirmed({ name: name.trim(), serviceName: service.name, date, time });
+      // Account creation is best-effort and never undoes the booking above,
+      // which already succeeded — a signup failure just becomes a note on
+      // the confirmation screen instead of a scary red error.
+      let accountNote: string | undefined;
+      if (saveDetails) {
+        const { error: signUpError } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { data: { name: name.trim(), phone: phone.trim() } },
+        });
+
+        if (signUpError) {
+          accountNote = `Your booking is confirmed, but we couldn't save your details (${signUpError.message}).`;
+        } else {
+          const { error: claimError } = await supabase.rpc(
+            "claim_customer_by_phone",
+            { p_phone: phone.trim() }
+          );
+          if (claimError) {
+            accountNote =
+              "Your account was created, but we couldn't attach your booking history yet.";
+          }
+        }
+      }
+
+      setConfirmed({
+        name: name.trim(),
+        serviceName: service.name,
+        date,
+        time,
+        accountNote,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -152,6 +199,11 @@ export function BookingSection({ services }: { services: Service[] }) {
               at {confirmed.time}. We&apos;ll see you then — no need to do
               anything else.
             </p>
+            {confirmed.accountNote && (
+              <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {confirmed.accountNote}
+              </p>
+            )}
             <button
               onClick={() => setConfirmed(null)}
               className="mt-8 rounded-full border border-black/10 px-6 py-3 text-sm font-semibold text-ink transition hover:bg-black/[0.03]"
@@ -186,7 +238,7 @@ export function BookingSection({ services }: { services: Service[] }) {
                   className={inputClass}
                 />
               </Field>
-              <Field label="Email (optional)">
+              <Field label={saveDetails ? "Email" : "Email (optional)"} required={saveDetails}>
                 <input
                   type="email"
                   value={email}
@@ -234,12 +286,52 @@ export function BookingSection({ services }: { services: Service[] }) {
               </div>
             </div>
 
+            <div className="mt-6 rounded-2xl border border-black/10 bg-[#f9f9fa] p-5">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={saveDetails}
+                  onChange={(e) => setSaveDetails(e.target.checked)}
+                  className="mt-1 h-4 w-4 accent-brand"
+                />
+                <span className="text-sm font-medium text-ink">
+                  Save my details for next time
+                  <span className="mt-0.5 block font-normal text-muted">
+                    Creates a free account so you can see your booking
+                    history and visit count next time you&apos;re here.
+                  </span>
+                </span>
+              </label>
+
+              {saveDetails && (
+                <div className="mt-4">
+                  <Field label="Password" required>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className={inputClass}
+                      minLength={6}
+                    />
+                  </Field>
+                </div>
+              )}
+            </div>
+
             <button
               type="submit"
               disabled={submitting}
-              className="mt-8 w-full rounded-full bg-brand px-6 py-4 text-base font-bold text-white shadow-lg shadow-brand/20 transition hover:bg-brand-dark disabled:opacity-60"
+              className="mt-6 w-full rounded-full bg-brand px-6 py-4 text-base font-bold text-white shadow-lg shadow-brand/20 transition hover:bg-brand-dark disabled:opacity-60"
             >
               {submitting ? "Booking…" : "Book Your Wash"}
+            </button>
+
+            <button
+              type="button"
+              onClick={onWantLogin}
+              className="mt-4 w-full text-center text-sm font-medium text-muted hover:text-ink"
+            >
+              Already saved your details? <span className="text-brand">Log in</span>
             </button>
           </form>
         )}
