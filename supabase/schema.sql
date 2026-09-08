@@ -305,6 +305,45 @@ create policy "staff can update bookings at own location"
     )
   );
 
+-- -----------------------------------------------------------------------------
+-- Account linking — lets a customer who just signed up (via the "save my
+-- details" toggle on the booking form) attach their new Auth account to the
+-- guest `customers` row that already has their booking history, matched by
+-- phone number.
+--
+-- Why this needs SECURITY DEFINER: the RLS update policy on `customers`
+-- only lets someone update a row where auth_user_id already equals their
+-- own auth.uid() — which is circular for a first-time link, since that
+-- column is still null on a guest row. This function is the one narrow,
+-- controlled exception: it runs with elevated privilege but only ever
+-- touches a row that (a) matches the phone number the caller provides and
+-- (b) doesn't already belong to someone (auth_user_id is null), and only
+-- ever sets that column to the caller's own auth.uid() — never anyone
+-- else's, and never overwrites an existing link.
+--
+-- Trade-off worth knowing: like the phone-matching logic everywhere else in
+-- this app, this trusts that knowing a phone number is enough to claim that
+-- history. Fine for a demo; if this goes to production with real customers,
+-- this is the first thing to revisit (e.g. gate it behind a verified phone
+-- via SMS OTP instead).
+-- -----------------------------------------------------------------------------
+create or replace function public.claim_customer_by_phone(p_phone text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update customers
+  set auth_user_id = auth.uid()
+  where phone = p_phone
+    and auth_user_id is null;
+end;
+$$;
+
+revoke all on function public.claim_customer_by_phone(text) from public;
+grant execute on function public.claim_customer_by_phone(text) to authenticated;
+
 -- =============================================================================
 -- Manual test to confirm this worked (run AFTER the script above, in the same
 -- SQL Editor — this runs as the Supabase service role so it bypasses RLS,

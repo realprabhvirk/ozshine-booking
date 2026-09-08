@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { Hero } from "@/components/hero";
 import { Services } from "@/components/services";
-import { BookingSection } from "@/components/booking-section";
+import { AccountGate } from "@/components/account-gate";
 import { Footer } from "@/components/footer";
 import type { Service } from "@/lib/supabase/types";
 
@@ -21,7 +21,7 @@ export default async function Home() {
     <main>
       <Hero />
       <Services services={serviceList} />
-      <BookingSection services={serviceList} />
+      <AccountGate services={serviceList} />
       <Footer />
     </main>
   );
