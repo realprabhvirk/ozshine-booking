@@ -74,6 +74,12 @@ export interface BookingWithDetails extends Booking {
   processed_by: Pick<Staff, "id" | "name"> | null;
 }
 
+// The invoice page additionally needs the location's own details (name,
+// address, phone) for the invoice header.
+export interface BookingWithInvoiceDetails extends BookingWithDetails {
+  location: Pick<Location, "id" | "name" | "address" | "phone"> | null;
+}
+
 // Note: the Supabase clients in this project are intentionally NOT typed
 // with a generated `Database` generic (there's no `supabase gen types` CLI
 // link here — this project only has anon keys, no project ref). Query

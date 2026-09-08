@@ -35,11 +35,11 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex h-dvh flex-col lg:flex-row">
+    <div className="flex h-dvh flex-col lg:flex-row print:block print:h-auto">
       <StaffProvider staff={staff as Staff}>
         <Nav />
-        <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
+        <div className="flex-1 overflow-y-auto print:overflow-visible">
+          <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8 print:max-w-none print:p-0">
             {children}
           </div>
         </div>
