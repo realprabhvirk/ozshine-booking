@@ -32,13 +32,21 @@ create table locations (
 );
 
 create table services (
-  id          uuid primary key default gen_random_uuid(),
-  location_id uuid not null references locations(id) on delete cascade,
-  name        text not null,
-  price_from  numeric(10, 2) not null,
-  description text,
-  sort_order  int not null default 0,
-  created_at  timestamptz not null default now()
+  id                uuid primary key default gen_random_uuid(),
+  location_id       uuid not null references locations(id) on delete cascade,
+  name              text not null,
+  -- price_from is the sedan/base rate — what's shown on the services page
+  -- as the "from $X" starting price. The other three are nullable: a
+  -- service that doesn't vary by vehicle size (nothing in the current
+  -- catalog, but nothing stops one existing later) just leaves them null
+  -- and every vehicle type falls back to price_from.
+  price_from        numeric(10, 2) not null,
+  price_small_wagon numeric(10, 2),
+  price_van         numeric(10, 2),
+  price_4wd         numeric(10, 2),
+  description       text,
+  sort_order        int not null default 0,
+  created_at        timestamptz not null default now()
 );
 
 create table customers (
@@ -51,12 +59,14 @@ create table customers (
 );
 
 create table vehicles (
-  id          uuid primary key default gen_random_uuid(),
-  customer_id uuid not null references customers(id) on delete cascade,
-  rego        text,
-  make_model  text,
-  notes       text,
-  created_at  timestamptz not null default now()
+  id           uuid primary key default gen_random_uuid(),
+  customer_id  uuid not null references customers(id) on delete cascade,
+  rego         text,
+  make_model   text,
+  vehicle_type text not null default 'sedan'
+                 check (vehicle_type in ('sedan', 'small_wagon', 'van', '4wd')),
+  notes        text,
+  created_at   timestamptz not null default now()
 );
 
 create table staff (
@@ -116,24 +126,28 @@ alter publication supabase_realtime add table bookings;
 insert into locations (name, address, phone)
 values ('OzShine Hand Car Wash — Beenleigh', 'Beenleigh, QLD', null);
 
-insert into services (location_id, name, price_from, description, sort_order)
-select id, 'OzShine Wash', 40.00, 'A refined basic exterior service featuring a meticulous hand wash, exterior window clarification and premium tyre shine.', 1
+-- Per-vehicle-type pricing (sedan / small wagon / van / 4WD) straight from
+-- the shop's real price list. Correction & Coating isn't broken out by
+-- vehicle type on that list, so it's flat — price_small_wagon/van/4wd stay
+-- null there and every vehicle type falls back to price_from.
+insert into services (location_id, name, price_from, price_small_wagon, price_van, price_4wd, description, sort_order)
+select id, 'OzShine Wash', 40.00, 45.00, 60.00, 50.00, 'A refined basic exterior service featuring a meticulous hand wash, exterior window clarification and premium tyre shine.', 1
 from locations where name = 'OzShine Hand Car Wash — Beenleigh';
 
-insert into services (location_id, name, price_from, description, sort_order)
-select id, 'Platinum Wash', 65.00, 'A comprehensive interior and exterior treatment with the stronger, full-car finish most regulars want.', 2
+insert into services (location_id, name, price_from, price_small_wagon, price_van, price_4wd, description, sort_order)
+select id, 'Platinum Wash', 65.00, 75.00, 100.00, 85.00, 'A comprehensive interior and exterior treatment with the stronger, full-car finish most regulars want.', 2
 from locations where name = 'OzShine Hand Car Wash — Beenleigh';
 
-insert into services (location_id, name, price_from, description, sort_order)
-select id, 'OzShine Polish', 120.00, 'A restorative exterior service using clay bar treatment and professional polishing to restore paint clarity.', 3
+insert into services (location_id, name, price_from, price_small_wagon, price_van, price_4wd, description, sort_order)
+select id, 'OzShine Polish', 120.00, 140.00, 180.00, 150.00, 'A restorative exterior service using clay bar treatment and professional polishing to restore paint clarity.', 3
 from locations where name = 'OzShine Hand Car Wash — Beenleigh';
 
-insert into services (location_id, name, price_from, description, sort_order)
-select id, 'Interior Detail', 240.00, 'A deep restorative clean for seats, carpets, mats and all the cabin surfaces that shape the driving experience.', 4
+insert into services (location_id, name, price_from, price_small_wagon, price_van, price_4wd, description, sort_order)
+select id, 'Interior Detail', 240.00, 260.00, 300.00, 280.00, 'A deep restorative clean for seats, carpets, mats and all the cabin surfaces that shape the driving experience.', 4
 from locations where name = 'OzShine Hand Car Wash — Beenleigh';
 
-insert into services (location_id, name, price_from, description, sort_order)
-select id, 'OzShine Full Detail', 330.00, 'The ultimate reset for your vehicle — combines OzShine Polish and Interior Detail, with optional engine bay cleaning and precision paint buffing.', 5
+insert into services (location_id, name, price_from, price_small_wagon, price_van, price_4wd, description, sort_order)
+select id, 'OzShine Full Detail', 330.00, 350.00, 450.00, 400.00, 'The ultimate reset for your vehicle — combines OzShine Polish and Interior Detail, with optional engine bay cleaning and precision paint buffing.', 5
 from locations where name = 'OzShine Hand Car Wash — Beenleigh';
 
 insert into services (location_id, name, price_from, description, sort_order)

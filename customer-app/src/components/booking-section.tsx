@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Service } from "@/lib/supabase/types";
+import { VEHICLE_TYPE_OPTIONS, getServicePrice } from "@/lib/pricing";
+import { formatMoney } from "@/lib/format";
+import type { Service, VehicleType } from "@/lib/supabase/types";
 
 export function BookingSection({
   services,
@@ -17,6 +19,7 @@ export function BookingSection({
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [rego, setRego] = useState("");
+  const [vehicleType, setVehicleType] = useState<VehicleType>("sedan");
   const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -85,29 +88,40 @@ export function BookingSection({
         customerId = newCustomer.id;
       }
 
+      // Always attach a vehicle record — even with no rego, the vehicle
+      // type matters (it's what pricing and staff's suggested charge are
+      // based on). Only dedupe against an existing vehicle when a rego was
+      // given; without one there's nothing reliable to match on.
       let vehicleId: string | null = null;
-      if (rego.trim()) {
-        const { data: existingVehicle } = await supabase
+      const regoTrimmed = rego.trim();
+      const existingVehicle = regoTrimmed
+        ? (
+            await supabase
+              .from("vehicles")
+              .select("id")
+              .eq("customer_id", customerId)
+              .eq("rego", regoTrimmed)
+              .maybeSingle()
+          ).data
+        : null;
+
+      if (existingVehicle) {
+        vehicleId = existingVehicle.id;
+      } else {
+        const { data: newVehicle, error: vehicleError } = await supabase
           .from("vehicles")
+          .insert({
+            customer_id: customerId,
+            rego: regoTrimmed || null,
+            vehicle_type: vehicleType,
+          })
           .select("id")
-          .eq("customer_id", customerId)
-          .eq("rego", rego.trim())
-          .maybeSingle();
+          .single();
 
-        if (existingVehicle) {
-          vehicleId = existingVehicle.id;
-        } else {
-          const { data: newVehicle, error: vehicleError } = await supabase
-            .from("vehicles")
-            .insert({ customer_id: customerId, rego: rego.trim() })
-            .select("id")
-            .single();
-
-          if (vehicleError || !newVehicle) {
-            throw new Error("Couldn't save your rego. Please try again.");
-          }
-          vehicleId = newVehicle.id;
+        if (vehicleError || !newVehicle) {
+          throw new Error("Couldn't save your vehicle details. Please try again.");
         }
+        vehicleId = newVehicle.id;
       }
 
       const { error: bookingError } = await supabase.from("bookings").insert({
@@ -253,6 +267,19 @@ export function BookingSection({
                   className={inputClass}
                 />
               </Field>
+              <Field label="Vehicle type" required hint="Pricing varies by size">
+                <select
+                  value={vehicleType}
+                  onChange={(e) => setVehicleType(e.target.value as VehicleType)}
+                  className={inputClass}
+                >
+                  {VEHICLE_TYPE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
               <Field label="Service" required>
                 <select
                   value={serviceId}
@@ -261,7 +288,7 @@ export function BookingSection({
                 >
                   {services.map((service) => (
                     <option key={service.id} value={service.id}>
-                      {service.name} — ${service.price_from}+
+                      {service.name} — from ${service.price_from}
                     </option>
                   ))}
                 </select>
@@ -285,6 +312,22 @@ export function BookingSection({
                 </Field>
               </div>
             </div>
+
+            {(() => {
+              const selectedService = services.find((s) => s.id === serviceId);
+              if (!selectedService) return null;
+              const vehicleLabel = VEHICLE_TYPE_OPTIONS.find(
+                (o) => o.value === vehicleType
+              )?.label.toLowerCase();
+              return (
+                <p className="mt-4 text-sm text-muted">
+                  Price for a {vehicleLabel}:{" "}
+                  <span className="font-semibold text-ink">
+                    {formatMoney(getServicePrice(selectedService, vehicleType))}
+                  </span>
+                </p>
+              );
+            })()}
 
             <div className="mt-6 rounded-2xl border border-black/10 bg-[#f9f9fa] p-5">
               <label className="flex cursor-pointer items-start gap-3">
@@ -346,10 +389,12 @@ const inputClass =
 function Field({
   label,
   required,
+  hint,
   children,
 }: {
   label: string;
   required?: boolean;
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -359,6 +404,7 @@ function Field({
         {required && <span className="text-brand"> *</span>}
       </span>
       {children}
+      {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
     </label>
   );
 }

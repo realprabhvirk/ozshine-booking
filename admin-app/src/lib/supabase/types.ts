@@ -4,6 +4,7 @@
 
 export type BookingStatus = "pending" | "approved" | "declined" | "completed";
 export type StaffRole = "admin" | "staff";
+export type VehicleType = "sedan" | "small_wagon" | "van" | "4wd";
 
 export interface Location {
   id: string;
@@ -17,7 +18,13 @@ export interface Service {
   id: string;
   location_id: string;
   name: string;
+  // price_from is the sedan/base rate. The other three are nullable — a
+  // service that doesn't vary by vehicle size just leaves them null and
+  // every vehicle type falls back to price_from (see lib/pricing.ts).
   price_from: number;
+  price_small_wagon: number | null;
+  price_van: number | null;
+  price_4wd: number | null;
   description: string | null;
   sort_order: number;
   created_at: string;
@@ -37,6 +44,7 @@ export interface Vehicle {
   customer_id: string;
   rego: string | null;
   make_model: string | null;
+  vehicle_type: VehicleType;
   notes: string | null;
   created_at: string;
 }
@@ -69,8 +77,11 @@ export interface Booking {
 // Shape returned by the booking queue / history queries, joined for display.
 export interface BookingWithDetails extends Booking {
   customer: Pick<Customer, "id" | "name" | "phone" | "email"> | null;
-  vehicle: Pick<Vehicle, "id" | "rego" | "make_model"> | null;
-  service: Pick<Service, "id" | "name" | "price_from"> | null;
+  vehicle: Pick<Vehicle, "id" | "rego" | "make_model" | "vehicle_type"> | null;
+  service: Pick<
+    Service,
+    "id" | "name" | "price_from" | "price_small_wagon" | "price_van" | "price_4wd"
+  > | null;
   processed_by: Pick<Staff, "id" | "name"> | null;
 }
 
