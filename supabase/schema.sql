@@ -105,21 +105,39 @@ alter publication supabase_realtime add table bookings;
 
 -- -----------------------------------------------------------------------------
 -- Seed data — Beenleigh only
+--
+-- Full 6-tier catalog, matching the real ozshinecarwash.com.au service
+-- ladder (copy pulled directly from their site). If you're re-running this
+-- on a database that already has bookings against the old 3-service seed,
+-- see the note in the PR that added this — re-running this whole script
+-- drops and recreates every table, wiping existing data.
 -- -----------------------------------------------------------------------------
 
 insert into locations (name, address, phone)
 values ('OzShine Hand Car Wash — Beenleigh', 'Beenleigh, QLD', null);
 
 insert into services (location_id, name, price_from, description, sort_order)
-select id, 'OzShine Wash', 40.00, 'Our signature hand wash.', 1
+select id, 'OzShine Wash', 40.00, 'A refined basic exterior service featuring a meticulous hand wash, exterior window clarification and premium tyre shine.', 1
 from locations where name = 'OzShine Hand Car Wash — Beenleigh';
 
 insert into services (location_id, name, price_from, description, sort_order)
-select id, 'Platinum Wash', 65.00, 'Our most popular wash — the full works.', 2
+select id, 'Platinum Wash', 65.00, 'A comprehensive interior and exterior treatment with the stronger, full-car finish most regulars want.', 2
 from locations where name = 'OzShine Hand Car Wash — Beenleigh';
 
 insert into services (location_id, name, price_from, description, sort_order)
-select id, 'OzShine Full Detail', 330.00, 'Complete interior + exterior detail.', 3
+select id, 'OzShine Polish', 120.00, 'A restorative exterior service using clay bar treatment and professional polishing to restore paint clarity.', 3
+from locations where name = 'OzShine Hand Car Wash — Beenleigh';
+
+insert into services (location_id, name, price_from, description, sort_order)
+select id, 'Interior Detail', 240.00, 'A deep restorative clean for seats, carpets, mats and all the cabin surfaces that shape the driving experience.', 4
+from locations where name = 'OzShine Hand Car Wash — Beenleigh';
+
+insert into services (location_id, name, price_from, description, sort_order)
+select id, 'OzShine Full Detail', 330.00, 'The ultimate reset for your vehicle — combines OzShine Polish and Interior Detail, with optional engine bay cleaning and precision paint buffing.', 5
+from locations where name = 'OzShine Hand Car Wash — Beenleigh';
+
+insert into services (location_id, name, price_from, description, sort_order)
+select id, 'Correction & Coating', 330.00, 'For drivers chasing deeper gloss and more durable surface protection — corrects clear coat imperfections and adds ceramic protection to exterior and interior surfaces.', 6
 from locations where name = 'OzShine Hand Car Wash — Beenleigh';
 
 -- -----------------------------------------------------------------------------

@@ -31,10 +31,13 @@ Database (Supabase — I run the SQL myself via their dashboard, non-technical)
 Write/maintain `supabase/schema.sql` as the single source of truth. Schema:
 
 * locations — id, name, address, phone. One seed row: Beenleigh.
-* services — id, location_id, name, price_from, description, sort_order. Seed:
+* services — id, location_id, name, price_from, description, sort_order. Seed — full catalog, matching the real ozshinecarwash.com.au service ladder:
    * OzShine Wash — $40+
    * Platinum Wash — $65+ (most popular)
-   * OzShine Full Detail — $330+
+   * OzShine Polish — $120+
+   * Interior Detail — $240+
+   * OzShine Full Detail — $330+ (featured package)
+   * Correction & Coating — $330+
 * customers — id, auth_user_id (nullable — null for guest bookings), name, phone (unique, this is THE matching key), email (nullable), created_at.
 * vehicles — id, customer_id, rego, make/model (nullable text), notes.
 * bookings — id, customer_id, vehicle_id, service_id, location_id, requested_date, requested_time, status (`pending`/`approved`/`declined`/`completed`), amount_charged, paid (boolean), paid_at, processed_by_staff_id (nullable — set when staff approves/completes/ invoices it), created_at.
@@ -51,7 +54,7 @@ App 1: `customer-app/`
 Single-page app — one main page component holds the whole UI (hero, services, booking form, account view). Small config/API route files are normal; "single page" means the UI itself, not that the whole project is literally one file.
 
 1. Hero — match the real OzShine site's look (headline, tagline, brand red `#c61b1f`, dark/glossy photography style, clean modern sans-serif). Fetch the live site (ozshinecarwash.com.au) for reference if you need exact styling details.
-2. Services — the 3 services above with pricing, "Book Now" scrolls to the form.
+2. Services — the full catalog above with pricing, "Book Now" scrolls to the form.
 3. Booking form — name, phone (required — the matching key), email (optional), rego, service, preferred date/time. Guest submit is the default single button. No payment collection. Creates a `pending` booking, shows an on-screen confirmation. No real SMS/email sending for this build.
 4. Optional account creation — small toggle near the form: "Save my details for next time" → email+password via Supabase Auth, no email verification.
 5. Logged-in view — replaces the booking form section: booking history, visit count, and a placeholder loyalty message ("You've visited 4 times — 2 more for 50% off your next wash"). Cosmetic for now, no real automation behind it.

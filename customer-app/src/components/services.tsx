@@ -1,8 +1,22 @@
 import type { Service } from "@/lib/supabase/types";
 
-// Which service card gets the "Most Popular" badge — matches the seed data
-// in supabase/schema.sql. Falls back gracefully if that ever changes.
-const FEATURED_SERVICE_NAME = "Platinum Wash";
+// Category eyebrow + badge per service, matching the real site's ladder —
+// keyed by name since services.description is prose, not a taxonomy.
+// Falls back gracefully (blank category, no badge) if a name doesn't match,
+// so a renamed/added service in Supabase never breaks this page.
+const CATEGORY_BY_NAME: Record<string, string> = {
+  "OzShine Wash": "Exterior Maintenance",
+  "Platinum Wash": "Exterior Maintenance",
+  "OzShine Polish": "Gloss Enhancement",
+  "Interior Detail": "Cabin Restoration",
+  "OzShine Full Detail": "Featured Package",
+  "Correction & Coating": "Long-Term Protection",
+};
+
+const BADGE_BY_NAME: Record<string, string> = {
+  "Platinum Wash": "Most Popular",
+  "OzShine Full Detail": "Featured Package",
+};
 
 export function Services({ services }: { services: Service[] }) {
   return (
@@ -13,37 +27,52 @@ export function Services({ services }: { services: Service[] }) {
             Our Services
           </p>
           <h2 className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
-            Pick your wash
+            Detailing packages with a clear premium ladder
           </h2>
+          <p className="mt-3 text-muted">
+            From routine exterior upkeep to full restorative detailing —
+            pick what suits your vehicle.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {services.map((service) => {
-            const featured = service.name === FEATURED_SERVICE_NAME;
+            const badge = BADGE_BY_NAME[service.name];
+            const category = CATEGORY_BY_NAME[service.name];
+            const highlighted = Boolean(badge);
             return (
               <div
                 key={service.id}
                 className={`relative flex flex-col rounded-3xl border p-8 ${
-                  featured
+                  highlighted
                     ? "border-ink bg-ink text-white shadow-xl shadow-ink/20"
                     : "border-black/10 bg-white text-ink shadow-sm"
                 }`}
               >
-                {featured && (
+                {badge && (
                   <span className="absolute -top-3 left-8 rounded-full bg-brand px-4 py-1 text-xs font-bold uppercase tracking-wide text-white">
-                    Most Popular
+                    {badge}
                   </span>
+                )}
+                {category && (
+                  <p
+                    className={`mb-1 text-xs font-bold uppercase tracking-widest ${
+                      highlighted ? "text-white/50" : "text-brand"
+                    }`}
+                  >
+                    {category}
+                  </p>
                 )}
                 <h3 className="text-xl font-bold">{service.name}</h3>
                 <p
                   className={`mt-3 text-3xl font-extrabold ${
-                    featured ? "text-white" : "text-ink"
+                    highlighted ? "text-white" : "text-ink"
                   }`}
                 >
                   ${service.price_from}
                   <span
                     className={`text-base font-semibold ${
-                      featured ? "text-white/60" : "text-muted"
+                      highlighted ? "text-white/60" : "text-muted"
                     }`}
                   >
                     {" "}
@@ -52,7 +81,7 @@ export function Services({ services }: { services: Service[] }) {
                 </p>
                 <p
                   className={`mt-4 flex-1 text-sm ${
-                    featured ? "text-white/70" : "text-muted"
+                    highlighted ? "text-white/70" : "text-muted"
                   }`}
                 >
                   {service.description}
@@ -60,7 +89,7 @@ export function Services({ services }: { services: Service[] }) {
                 <a
                   href="#booking"
                   className={`mt-8 rounded-full px-5 py-3 text-center text-sm font-bold transition ${
-                    featured
+                    highlighted
                       ? "bg-brand text-white hover:bg-brand-dark"
                       : "bg-ink text-white hover:bg-black"
                   }`}
@@ -71,6 +100,11 @@ export function Services({ services }: { services: Service[] }) {
             );
           })}
         </div>
+
+        <p className="mt-8 text-center text-xs text-muted">
+          All prices are starting rates and may vary based on vehicle size
+          and condition.
+        </p>
       </div>
     </section>
   );
