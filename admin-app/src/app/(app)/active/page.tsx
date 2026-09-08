@@ -16,7 +16,7 @@ export default async function ActivePage() {
   const { data: bookings } = await supabase
     .from("bookings")
     .select(
-      "*, customer:customers(id,name,phone,email), vehicle:vehicles(id,rego,make_model), service:services(id,name,price_from)"
+      "*, customer:customers(id,name,phone,email), vehicle:vehicles(id,rego,make_model,vehicle_type), service:services(id,name,price_from,price_small_wagon,price_van,price_4wd)"
     )
     .eq("location_id", staff?.location_id ?? "")
     .eq("status", "approved")

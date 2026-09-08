@@ -5,10 +5,11 @@ import { createClient } from "@/lib/supabase/client";
 import { useStaff } from "@/components/staff-context";
 import { playAlertSound } from "@/lib/alert-sound";
 import { formatDate, formatMoney, formatTime } from "@/lib/format";
+import { getServicePrice } from "@/lib/pricing";
 import type { Booking, BookingWithDetails } from "@/lib/supabase/types";
 
 const BOOKING_SELECT =
-  "*, customer:customers(id,name,phone,email), vehicle:vehicles(id,rego,make_model), service:services(id,name,price_from)";
+  "*, customer:customers(id,name,phone,email), vehicle:vehicles(id,rego,make_model,vehicle_type), service:services(id,name,price_from,price_small_wagon,price_van,price_4wd)";
 
 export function QueueClient({
   initialBookings,
@@ -120,7 +121,14 @@ export function QueueClient({
               <p className="mt-2 text-sm">
                 <span className="font-medium">{booking.service?.name}</span>
                 {" · "}
-                {formatMoney(booking.service?.price_from ?? null)}+
+                {formatMoney(
+                  booking.service
+                    ? getServicePrice(
+                        booking.service,
+                        booking.vehicle?.vehicle_type ?? "sedan"
+                      )
+                    : null
+                )}
               </p>
               <p className="text-sm text-muted">
                 Requested for {formatDate(booking.requested_date)} at{" "}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useStaff } from "@/components/staff-context";
 import { formatMoney, formatTime } from "@/lib/format";
+import { getServicePrice, VEHICLE_TYPE_LABELS } from "@/lib/pricing";
 import type { BookingWithDetails } from "@/lib/supabase/types";
 
 export function ActiveList({
@@ -22,7 +23,10 @@ export function ActiveList({
 
   function startCompleting(booking: BookingWithDetails) {
     setCompletingId(booking.id);
-    setAmount(String(booking.service?.price_from ?? ""));
+    const suggested = booking.service
+      ? getServicePrice(booking.service, booking.vehicle?.vehicle_type ?? "sedan")
+      : null;
+    setAmount(suggested !== null ? String(suggested) : "");
   }
 
   async function confirmComplete(bookingId: string) {
@@ -80,10 +84,19 @@ export function ActiveList({
                 <p className="text-sm text-muted">
                   {booking.customer?.phone}
                   {booking.vehicle?.rego ? ` · ${booking.vehicle.rego}` : ""}
+                  {" · "}
+                  {VEHICLE_TYPE_LABELS[booking.vehicle?.vehicle_type ?? "sedan"]}
                 </p>
                 <p className="mt-1 text-sm">
                   {booking.service?.name} ·{" "}
-                  {formatMoney(booking.service?.price_from ?? null)}+
+                  {formatMoney(
+                    booking.service
+                      ? getServicePrice(
+                          booking.service,
+                          booking.vehicle?.vehicle_type ?? "sedan"
+                        )
+                      : null
+                  )}
                 </p>
               </div>
 

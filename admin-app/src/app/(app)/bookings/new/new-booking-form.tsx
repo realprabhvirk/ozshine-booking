@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { todayISODate } from "@/lib/format";
-import type { Service } from "@/lib/supabase/types";
+import { todayISODate, formatMoney } from "@/lib/format";
+import { VEHICLE_TYPE_OPTIONS, getServicePrice } from "@/lib/pricing";
+import type { Service, VehicleType } from "@/lib/supabase/types";
 
 export function NewBookingForm({
   services,
@@ -21,6 +22,7 @@ export function NewBookingForm({
   const [email, setEmail] = useState("");
   const [rego, setRego] = useState("");
   const [makeModel, setMakeModel] = useState("");
+  const [vehicleType, setVehicleType] = useState<VehicleType>("sedan");
   const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
   // Defaults to today — walk-ins and phone bookings almost always are.
   const [date, setDate] = useState(() => todayISODate());
@@ -68,34 +70,41 @@ export function NewBookingForm({
         customerId = newCustomer.id;
       }
 
-      // 2. Find or create the vehicle for this customer, if a rego was given.
+      // 2. Find or create the vehicle for this customer. Always create one
+      // (even with no rego) — vehicle type drives the suggested charge at
+      // Mark Complete, so it needs to be captured regardless. Only dedupe
+      // against an existing vehicle when a rego was given to match on.
       let vehicleId: string | null = null;
-      if (rego.trim()) {
-        const { data: existingVehicle } = await supabase
+      const regoTrimmed = rego.trim();
+      const existingVehicle = regoTrimmed
+        ? (
+            await supabase
+              .from("vehicles")
+              .select("id")
+              .eq("customer_id", customerId)
+              .eq("rego", regoTrimmed)
+              .maybeSingle()
+          ).data
+        : null;
+
+      if (existingVehicle) {
+        vehicleId = existingVehicle.id;
+      } else {
+        const { data: newVehicle, error: vehicleError } = await supabase
           .from("vehicles")
+          .insert({
+            customer_id: customerId,
+            rego: regoTrimmed || null,
+            make_model: makeModel.trim() || null,
+            vehicle_type: vehicleType,
+          })
           .select("id")
-          .eq("customer_id", customerId)
-          .eq("rego", rego.trim())
-          .maybeSingle();
+          .single();
 
-        if (existingVehicle) {
-          vehicleId = existingVehicle.id;
-        } else {
-          const { data: newVehicle, error: vehicleError } = await supabase
-            .from("vehicles")
-            .insert({
-              customer_id: customerId,
-              rego: rego.trim(),
-              make_model: makeModel.trim() || null,
-            })
-            .select("id")
-            .single();
-
-          if (vehicleError || !newVehicle) {
-            throw new Error(vehicleError?.message ?? "Couldn't save the vehicle.");
-          }
-          vehicleId = newVehicle.id;
+        if (vehicleError || !newVehicle) {
+          throw new Error(vehicleError?.message ?? "Couldn't save the vehicle.");
         }
+        vehicleId = newVehicle.id;
       }
 
       // 3. Create the booking itself, as pending — it lands in the same
@@ -120,6 +129,7 @@ export function NewBookingForm({
       setEmail("");
       setRego("");
       setMakeModel("");
+      setVehicleType("sedan");
       setDate(todayISODate());
       setTime("");
       router.refresh();
@@ -129,6 +139,11 @@ export function NewBookingForm({
       setSubmitting(false);
     }
   }
+
+  const selectedService = services.find((s) => s.id === serviceId);
+  const estimatedPrice = selectedService
+    ? getServicePrice(selectedService, vehicleType)
+    : null;
 
   return (
     <form
@@ -183,6 +198,19 @@ export function NewBookingForm({
             className={inputClass}
           />
         </Field>
+        <Field label="Vehicle type" required hint="Pricing varies by size">
+          <select
+            value={vehicleType}
+            onChange={(e) => setVehicleType(e.target.value as VehicleType)}
+            className={inputClass}
+          >
+            {VEHICLE_TYPE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </Field>
         <Field label="Service" required>
           <select
             value={serviceId}
@@ -191,7 +219,7 @@ export function NewBookingForm({
           >
             {services.map((service) => (
               <option key={service.id} value={service.id}>
-                {service.name} — ${service.price_from}+
+                {service.name} — from {formatMoney(service.price_from)}
               </option>
             ))}
           </select>
@@ -214,10 +242,20 @@ export function NewBookingForm({
         </Field>
       </div>
 
+      {estimatedPrice !== null && (
+        <p className="mt-4 text-sm text-muted">
+          Estimated price for a{" "}
+          {VEHICLE_TYPE_OPTIONS.find((o) => o.value === vehicleType)?.label.toLowerCase()}:{" "}
+          <span className="font-semibold text-foreground">
+            {formatMoney(estimatedPrice)}
+          </span>
+        </p>
+      )}
+
       <button
         type="submit"
         disabled={submitting}
-        className="mt-6 w-full rounded-lg bg-brand px-4 py-3.5 text-base font-semibold text-white transition hover:bg-brand-dark disabled:opacity-60 sm:w-auto"
+        className="mt-4 w-full rounded-lg bg-brand px-4 py-3.5 text-base font-semibold text-white transition hover:bg-brand-dark disabled:opacity-60 sm:w-auto"
       >
         {submitting ? "Creating…" : "Create booking"}
       </button>
