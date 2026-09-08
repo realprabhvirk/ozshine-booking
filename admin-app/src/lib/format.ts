@@ -32,18 +32,41 @@ export function formatTime(time: string): string {
   return `${hour12}:${String(minutes).padStart(2, "0")} ${period}`;
 }
 
+// Beenleigh's timezone, fixed (Queensland doesn't observe daylight saving).
+// "Today" for this business always means today in Brisbane — not wherever
+// the server happens to be running. Vercel's serverless functions run in
+// UTC by default, so computing "today" with a plain `new Date()` here would
+// silently disagree with the browser's local date for a chunk of every day
+// (bookings/dashboards would look like they're missing entries). This is
+// what actually keeps Active Today, the dashboard KPIs, and Order History's
+// default range all in sync with the shop's actual calendar day.
+const LOCATION_TZ = "Australia/Brisbane";
+
+function isoDateOf(date: Date): string {
+  // en-CA's default date format is already YYYY-MM-DD.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: LOCATION_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
 // Today's date as YYYY-MM-DD, matching Postgres `date` columns.
 export function todayISODate(): string {
-  return isoDateDaysAgo(0);
+  return isoDateOf(new Date());
 }
 
 // N days before today, as YYYY-MM-DD — used for order history's default
 // date-range filter.
 export function isoDateDaysAgo(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  const [year, month, day] = todayISODate().split("-").map(Number);
+  // Anchor as a UTC-midnight instant purely so setUTCDate() does calendar
+  // arithmetic without any further timezone reinterpretation.
+  const anchor = new Date(Date.UTC(year, month - 1, day));
+  anchor.setUTCDate(anchor.getUTCDate() - days);
+  const y = anchor.getUTCFullYear();
+  const m = String(anchor.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(anchor.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
