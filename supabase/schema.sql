@@ -95,6 +95,15 @@ create index idx_customers_phone on customers(phone);
 create index idx_staff_auth_user on staff(auth_user_id);
 
 -- -----------------------------------------------------------------------------
+-- Realtime — the admin app's booking queue subscribes to this table so new
+-- bookings appear instantly with no page refresh. Supabase ships a
+-- `supabase_realtime` publication on every new project; this just adds our
+-- table to it. Re-running this script re-adds it (the cascade drop above
+-- removes the table from the publication along with everything else).
+-- -----------------------------------------------------------------------------
+alter publication supabase_realtime add table bookings;
+
+-- -----------------------------------------------------------------------------
 -- Seed data — Beenleigh only
 -- -----------------------------------------------------------------------------
 
