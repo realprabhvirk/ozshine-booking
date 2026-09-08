@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: "/queue", label: "Booking Queue", icon: QueueIcon },
   { href: "/active", label: "Active Today", icon: ActiveIcon },
   { href: "/customers", label: "Customers", icon: CustomersIcon },
+  { href: "/history", label: "Order History", icon: HistoryIcon },
   { href: "/bookings/new", label: "New Booking", icon: PlusIcon },
 ];
 
@@ -18,7 +19,7 @@ export function Nav() {
   const staff = useStaff();
 
   return (
-    <nav className="flex h-full w-full flex-col bg-[#16181d] text-white lg:w-64">
+    <nav className="flex h-full w-full flex-col bg-[#16181d] text-white lg:w-64 print:hidden">
       <div className="border-b border-white/10 px-5 py-6">
         <p className="text-lg font-bold tracking-tight">
           Oz<span className="text-brand">Shine</span>
@@ -98,6 +99,16 @@ function CustomersIcon(props: React.SVGProps<SVGSVGElement>) {
       <circle cx="9" cy="8" r="3.2" />
       <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" strokeLinecap="round" />
       <path d="M16 4.5a3.2 3.2 0 0 1 0 6.4M20.5 20c0-2.8-2-5.1-4.7-5.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function HistoryIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} {...props}>
+      <path d="M3 12a9 9 0 1 0 2.6-6.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3 4v5h5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 7v5l4 2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
