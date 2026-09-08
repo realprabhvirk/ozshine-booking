@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { todayISODate } from "@/lib/format";
 import type { Service } from "@/lib/supabase/types";
 
 export function NewBookingForm({
@@ -21,7 +22,8 @@ export function NewBookingForm({
   const [rego, setRego] = useState("");
   const [makeModel, setMakeModel] = useState("");
   const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
-  const [date, setDate] = useState("");
+  // Defaults to today — walk-ins and phone bookings almost always are.
+  const [date, setDate] = useState(() => todayISODate());
   const [time, setTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +120,7 @@ export function NewBookingForm({
       setEmail("");
       setRego("");
       setMakeModel("");
-      setDate("");
+      setDate(todayISODate());
       setTime("");
       router.refresh();
     } catch (err) {

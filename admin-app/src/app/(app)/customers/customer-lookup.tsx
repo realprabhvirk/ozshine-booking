@@ -9,11 +9,20 @@ export function CustomerLookup() {
   const [supabase] = useState(() => createClient());
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [results, setResults] = useState<Customer[]>([]);
   const [searched, setSearched] = useState(false);
   const [selected, setSelected] = useState<Customer | null>(null);
   const [history, setHistory] = useState<BookingWithDetails[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
+  const [showNewCustomer, setShowNewCustomer] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -21,6 +30,7 @@ export function CustomerLookup() {
     if (!q) return;
 
     setSearching(true);
+    setSearchError(null);
     setSelected(null);
     setSearched(true);
 
@@ -37,15 +47,30 @@ export function CustomerLookup() {
         .limit(20),
     ]);
 
+    if (byNameOrPhone.error || byRego.error) {
+      setSearchError(
+        `Search failed: ${byNameOrPhone.error?.message ?? byRego.error?.message}`
+      );
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+
     const matches = new Map<string, Customer>();
     for (const c of byNameOrPhone.data ?? []) matches.set(c.id, c);
 
     const regoCustomerIds = (byRego.data ?? []).map((v) => v.customer_id);
     if (regoCustomerIds.length > 0) {
-      const { data: viaRego } = await supabase
+      const { data: viaRego, error: viaRegoError } = await supabase
         .from("customers")
         .select("*")
         .in("id", regoCustomerIds);
+
+      if (viaRegoError) {
+        setSearchError(`Search failed: ${viaRegoError.message}`);
+        setSearching(false);
+        return;
+      }
       for (const c of viaRego ?? []) matches.set(c.id, c);
     }
 
@@ -55,9 +80,11 @@ export function CustomerLookup() {
 
   async function selectCustomer(customer: Customer) {
     setSelected(customer);
+    setShowNewCustomer(false);
     setLoadingHistory(true);
+    setHistoryError(null);
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("bookings")
       .select(
         "*, vehicle:vehicles(id,rego,make_model), service:services(id,name,price_from)"
@@ -65,8 +92,52 @@ export function CustomerLookup() {
       .eq("customer_id", customer.id)
       .order("requested_date", { ascending: false });
 
+    if (error) {
+      setHistoryError(`Couldn't load booking history: ${error.message}`);
+    }
     setHistory((data as BookingWithDetails[]) ?? []);
     setLoadingHistory(false);
+  }
+
+  async function handleCreateCustomer(e: React.FormEvent) {
+    e.preventDefault();
+    setCreateError(null);
+
+    if (!newName.trim() || !newPhone.trim()) {
+      setCreateError("Name and phone are required.");
+      return;
+    }
+
+    setCreating(true);
+
+    const { data, error } = await supabase
+      .from("customers")
+      .insert({
+        name: newName.trim(),
+        phone: newPhone.trim(),
+        email: newEmail.trim() || null,
+      })
+      .select("*")
+      .single();
+
+    setCreating(false);
+
+    if (error || !data) {
+      setCreateError(
+        error?.code === "23505"
+          ? "A customer with that phone number already exists — try searching for them instead."
+          : `Couldn't create that customer: ${error?.message ?? "unknown error"}`
+      );
+      return;
+    }
+
+    setNewName("");
+    setNewPhone("");
+    setNewEmail("");
+    setShowNewCustomer(false);
+    setResults((prev) => [data as Customer, ...prev]);
+    setSearched(true);
+    selectCustomer(data as Customer);
   }
 
   const visitCount = history.filter((b) => b.status === "completed").length;
@@ -77,7 +148,7 @@ export function CustomerLookup() {
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
       <div>
-        <form onSubmit={handleSearch} className="mb-4 flex gap-2">
+        <form onSubmit={handleSearch} className="mb-3 flex gap-2">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -93,7 +164,76 @@ export function CustomerLookup() {
           </button>
         </form>
 
-        {searched && results.length === 0 && !searching && (
+        <button
+          onClick={() => {
+            setShowNewCustomer((v) => !v);
+            setSelected(null);
+          }}
+          className="mb-4 w-full rounded-lg border border-dashed border-border px-4 py-2.5 text-sm font-semibold text-muted transition hover:border-brand hover:text-brand"
+        >
+          {showNewCustomer ? "Cancel" : "+ New Customer"}
+        </button>
+
+        {showNewCustomer && (
+          <form
+            onSubmit={handleCreateCustomer}
+            className="mb-4 rounded-xl border border-border bg-surface p-4"
+          >
+            {createError && (
+              <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-brand-dark">
+                {createError}
+              </p>
+            )}
+            <div className="flex flex-col gap-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+                  Name *
+                </span>
+                <input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+                  Phone *
+                </span>
+                <input
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                  className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+                  Email (optional)
+                </span>
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={creating}
+                className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:opacity-60"
+              >
+                {creating ? "Creating…" : "Create Customer"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {searchError && (
+          <p className="mb-3 rounded-lg bg-red-50 px-4 py-3 text-sm text-brand-dark">
+            {searchError}
+          </p>
+        )}
+
+        {searched && !searching && !searchError && results.length === 0 && (
           <p className="text-sm text-muted">No customers matched that.</p>
         )}
 
@@ -142,6 +282,11 @@ export function CustomerLookup() {
             </div>
 
             <h2 className="mb-3 text-lg font-semibold">Booking history</h2>
+            {historyError && (
+              <p className="mb-3 rounded-lg bg-red-50 px-4 py-3 text-sm text-brand-dark">
+                {historyError}
+              </p>
+            )}
             {loadingHistory ? (
               <p className="text-sm text-muted">Loading…</p>
             ) : history.length === 0 ? (
