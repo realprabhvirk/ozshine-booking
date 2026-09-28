@@ -219,7 +219,7 @@ export function NewBookingForm({
           >
             {services.map((service) => (
               <option key={service.id} value={service.id}>
-                {service.name} — from {formatMoney(service.price_from)}
+                {service.name} — {formatMoney(getServicePrice(service, vehicleType))}
               </option>
             ))}
           </select>

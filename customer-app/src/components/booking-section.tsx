@@ -288,7 +288,7 @@ export function BookingSection({
                 >
                   {services.map((service) => (
                     <option key={service.id} value={service.id}>
-                      {service.name} — from ${service.price_from}
+                      {service.name} — {formatMoney(getServicePrice(service, vehicleType))}
                     </option>
                   ))}
                 </select>
