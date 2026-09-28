@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import logo from "@/assets/oz-shine-logo.png";
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -83,9 +85,7 @@ export function InvoiceView({
       <div className="rounded-2xl border border-border bg-surface p-8 shadow-sm shadow-black/[0.03] print:border-0 print:shadow-none">
         <div className="mb-8 flex items-start justify-between border-b border-border pb-6">
           <div>
-            <p className="text-xl font-bold tracking-tight">
-              Oz<span className="text-brand">Shine</span>
-            </p>
+            <Image src={logo} alt="OzShine" className="mb-1 h-9 w-auto" />
             <p className="text-sm text-muted">{booking.location?.name}</p>
             {booking.location?.address && (
               <p className="text-sm text-muted">{booking.location.address}</p>

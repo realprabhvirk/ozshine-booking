@@ -1,3 +1,5 @@
+import Image from "next/image";
+import logo from "@/assets/oz-shine-logo.png";
 export function Hero() {
   return (
     <header className="relative overflow-hidden bg-ink text-white">
@@ -12,9 +14,7 @@ export function Hero() {
       </div>
 
       <nav className="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <p className="text-xl font-extrabold tracking-tight">
-          Oz<span className="text-brand">Shine</span>
-        </p>
+        <Image src={logo} alt="OzShine" priority className="h-9 w-auto sm:h-11" />
         <a
           href="#booking"
           className="rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-dark"
