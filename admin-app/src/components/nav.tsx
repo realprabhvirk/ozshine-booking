@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import logo from "@/assets/oz-shine-logo.png";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogoutButton } from "./logout-button";
@@ -21,10 +23,8 @@ export function Nav() {
   return (
     <nav className="flex h-full w-full flex-col bg-[#16181d] text-white lg:w-64 print:hidden">
       <div className="border-b border-white/10 px-5 py-6">
-        <p className="text-lg font-bold tracking-tight">
-          Oz<span className="text-brand">Shine</span>
-        </p>
-        <p className="text-xs text-white/50">Beenleigh · Staff</p>
+        <Image src={logo} alt="OzShine" priority className="h-8 w-auto" />
+        <p className="mt-2 text-xs text-white/50">Beenleigh · Staff</p>
       </div>
 
       <ul className="flex flex-1 flex-row overflow-x-auto lg:flex-col lg:overflow-visible lg:px-3 lg:py-4">

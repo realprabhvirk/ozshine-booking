@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import logo from "@/assets/oz-shine-logo.png";
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -58,9 +60,7 @@ function LoginForm() {
       onSubmit={handleSubmit}
       className="w-full max-w-sm rounded-2xl bg-surface p-8 shadow-xl shadow-black/5"
     >
-      <p className="mb-1 text-2xl font-bold tracking-tight">
-        Oz<span className="text-brand">Shine</span>
-      </p>
+      <Image src={logo} alt="OzShine" priority className="mb-2 h-11 w-auto" />
       <p className="mb-8 text-sm text-muted">Beenleigh staff sign in</p>
 
       {error && (
