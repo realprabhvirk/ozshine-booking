@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { BookingWithInvoiceDetails } from "@/lib/supabase/types";
 import { InvoiceView } from "./invoice-view";
+import { LegacyFrame } from "@/components/legacy-frame";
 
 export const dynamic = "force-dynamic";
 
@@ -26,5 +27,9 @@ export default async function InvoicePage({
     notFound();
   }
 
-  return <InvoiceView booking={booking as BookingWithInvoiceDetails} />;
+  return (
+    <LegacyFrame>
+      <InvoiceView booking={booking as BookingWithInvoiceDetails} />
+    </LegacyFrame>
+  );
 }

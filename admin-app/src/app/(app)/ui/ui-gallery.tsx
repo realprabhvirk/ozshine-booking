@@ -43,7 +43,7 @@ export function UiGallery() {
   const [sw, setSw] = useState(true);
 
   return (
-    <div className="-mx-4 -my-6 min-h-dvh bg-canvas px-4 py-6 text-fg lg:-mx-8 lg:-my-8 lg:px-8 lg:py-8">
+    <div className="mx-auto max-w-[1400px] text-fg">
       <PageHeader
         title="UI kit"
         description={`Building blocks for the new screens · ${formatDate(todayISO(), "full")}`}

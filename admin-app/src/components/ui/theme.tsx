@@ -6,9 +6,9 @@ import { Button } from "./button";
 
 export type Theme = "light" | "dark";
 const STORAGE_KEY = "oz-admin-theme";
-// Until the V2 screens replace the V1 ones, light stays the default so the
-// existing screens look unchanged.
-export const DEFAULT_THEME: Theme = "light";
+// Dark by default: easier on the eyes on a bright workshop tablet and makes
+// the status colours pop. Light mode is one tap away.
+export const DEFAULT_THEME: Theme = "dark";
 
 // Inline script for <head>: applies the saved theme before first paint so
 // there's no flash of the wrong colours.
