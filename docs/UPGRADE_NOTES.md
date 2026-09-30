@@ -36,6 +36,14 @@ Living document for the `feature/v2-shop-os` branch. Updated as each phase lands
 - **Checkout lives on the Floor.** Phase 3 includes a simple checkout: invoice lines, GST, rewards/promo codes, EFTPOS/cash/bank transfer, change for cash, part payments, and "pay later". Editing invoice lines, receipts, refunds and end-of-day come in Phase 4.
 - **Old screens kept until rebuilt.** Customers, Order History and the old invoice page keep their V1 look inside the new layout until Phases 4–5.
 - **Live updates.** Every screen refreshes itself on booking/invoice/payment changes (Supabase Realtime), when the tablet changes something, when the tab comes back into view, and every 60 seconds as a backup. New online requests chime.
+- **Money (Phase 4).**
+  - Invoices, Debtors, End of day and GST live under Money.
+  - Invoice lines can be edited, discounted or removed. Every change is logged, and the database won't let the total drop below what's already been paid.
+  - Refunds and voids are admin-only. A void keeps its number.
+  - Printouts are an A4 "Tax invoice" (it says just "Invoice" until an ABN is entered in settings, since an Australian tax invoice needs the seller's ABN) and an 80mm thermal receipt.
+- **Unpaid jobs from the old system** appear in Debtors with "Create invoice", which makes an invoice at the amount charged back then.
+- **GST figures** are completed-job totals (incl. GST) ÷ 11, by completion date, grouped into Australian financial-year BAS quarters. They're a guide for the accountant, not lodged figures.
+- **End of day.** Counted vs expected cash (cash payments minus cash refunds for that Brisbane day), with the difference recorded. Closing a day doesn't lock anything else. An admin can reopen it.
 - **Demo data is fully removable.** Every demo row is flagged; demo invoices are numbered `DEMO-…` so they don't use up real invoice numbers.
 
 ## Env vars (all optional)
@@ -48,7 +56,7 @@ Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are required
 - Tests run on Postgres 18 (PGlite); Supabase runs 15/17. The SQL avoids anything version-specific.
 - **Bug found in the live V1 site (confirmed by test):** the public booking form fails for any brand-new guest with "Couldn't save your details". It creates the customer and then reads the row back, but the public role isn't allowed to read customers. Returning guests fail differently: the public can't look up their phone, so the app tries to create a duplicate. V2's `create_public_booking` function does all of this server-side and fixes both. I haven't patched `main` directly (this branch never touches `main`).
 
-- **Until Phase 4: don't use the old invoice page's "Mark paid" for jobs checked out on the Floor.** The old page flips the booking's paid flag directly, while the new checkout records real payments against an invoice. Use Floor → booking → Checkout / Take payment.
+- **Old invoice page only for old jobs.** Since Phase 4, `/invoices/<id>` shows the new invoice. Links to the old booking-based page go to the job's new invoice when it has one. Jobs finished before the upgrade (no new invoice) still show the original page.
 - **Hotfix shipped after the upgrade:** the old Order History and Invoice pages broke after `upgrade_v2.sql` because bookings gained a second link to staff (assigned staffer). Fixed in PR #11 by naming the link explicitly.
 
 ## What I'd do next

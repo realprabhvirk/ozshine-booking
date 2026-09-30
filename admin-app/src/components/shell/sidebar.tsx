@@ -78,7 +78,7 @@ export function Sidebar() {
         aria-label="Main"
         className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-panel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden print:hidden"
       >
-        <ul className="grid grid-cols-5">
+        <ul className="grid grid-cols-6">
           {NAV_ITEMS.map((item) => {
             const active = item.match(pathname);
             const Icon = item.icon;
@@ -88,7 +88,7 @@ export function Sidebar() {
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-semibold",
+                    "flex h-16 flex-col items-center justify-center gap-1 text-[10px] font-semibold",
                     active ? "text-accent" : "text-fg-muted",
                   )}
                 >
