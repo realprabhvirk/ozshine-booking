@@ -206,10 +206,10 @@ function PanelBody({ id }: { id: string }) {
           )}
           <div className="border-t border-line py-2">
             <Link
-              href={`/customers?q=${encodeURIComponent(b.customer.phone ?? b.customer.name)}`}
+              href={`/customers/${b.customer.id}`}
               className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-accent-ink hover:underline"
             >
-              <History size={16} aria-hidden /> Visit history
+              <History size={16} aria-hidden /> Customer profile
             </Link>
           </div>
         </section>

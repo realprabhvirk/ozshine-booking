@@ -36,7 +36,17 @@ type KnownCustomer = {
 type KnownVehicle = { id: string; rego: string | null; make_model: string | null; colour: string | null; vehicle_type: VehicleType };
 type Slot = { slot_time: string; available: boolean; reason: string | null };
 
-export function NewSaleClient({ initialMode, initialDate, initialTime }: { initialMode: Mode; initialDate: string | null; initialTime: string | null }) {
+export function NewSaleClient({
+  initialMode,
+  initialDate,
+  initialTime,
+  initialPhone = "",
+}: {
+  initialMode: Mode;
+  initialDate: string | null;
+  initialTime: string | null;
+  initialPhone?: string;
+}) {
   const { supabase, services, addons, bays } = useShop();
   const router = useRouter();
   const toast = useToast();
@@ -45,7 +55,7 @@ export function NewSaleClient({ initialMode, initialDate, initialTime }: { initi
   const [vehicleType, setVehicleType] = useState<VehicleType>("sedan");
   const [serviceId, setServiceId] = useState<string | null>(null);
   const [addonIds, setAddonIds] = useState<string[]>([]);
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(initialPhone);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [rego, setRego] = useState("");

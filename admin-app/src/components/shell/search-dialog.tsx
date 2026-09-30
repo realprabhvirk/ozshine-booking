@@ -95,7 +95,7 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
           icon: Car,
           title: `${v.rego} · ${v.customer_name}`,
           sub: [v.make_model, VEHICLE_TYPE_LABELS[v.vehicle_type]].filter(Boolean).join(" · "),
-          go: () => go(`/customers?q=${encodeURIComponent(v.rego)}`),
+          go: () => go(`/customers/${v.customer_id}`),
         })),
         ...results.customers.map((c) => ({
           key: `c-${c.id}`,
@@ -103,7 +103,7 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
           title: c.name,
           sub: formatPhone(c.phone) || "No phone",
           badge: c.is_vip ? <Badge tone="accent">VIP</Badge> : undefined,
-          go: () => go(`/customers?q=${encodeURIComponent(c.phone ?? c.name)}`),
+          go: () => go(`/customers/${c.id}`),
         })),
       ];
 

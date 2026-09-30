@@ -9,5 +9,6 @@ export default async function NewSalePage({ searchParams }: PageProps<"/new">) {
   const mode = sp.mode === "later" ? "later" : "now";
   const date = typeof sp.date === "string" && isoDateSchema.safeParse(sp.date).success ? sp.date : null;
   const time = typeof sp.time === "string" && timeSchema.safeParse(sp.time).success ? sp.time.slice(0, 5) : null;
-  return <NewSaleClient key={`${mode}-${date}-${time}`} initialMode={mode} initialDate={date} initialTime={time} />;
+  const phone = typeof sp.phone === "string" ? sp.phone.slice(0, 20) : "";
+  return <NewSaleClient key={`${mode}-${date}-${time}-${phone}`} initialMode={mode} initialDate={date} initialTime={time} initialPhone={phone} />;
 }

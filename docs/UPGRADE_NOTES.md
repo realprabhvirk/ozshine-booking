@@ -44,6 +44,12 @@ Living document for the `feature/v2-shop-os` branch. Updated as each phase lands
 - **Unpaid jobs from the old system** appear in Debtors with "Create invoice", which makes an invoice at the amount charged back then.
 - **GST figures** are completed-job totals (incl. GST) ÷ 11, by completion date, grouped into Australian financial-year BAS quarters. They're a guide for the accountant, not lodged figures.
 - **End of day.** Counted vs expected cash (cash payments minus cash refunds for that Brisbane day), with the difference recorded. Closing a day doesn't lock anything else. An admin can reopen it.
+- **Customers (Phase 5).**
+  - The directory searches name, mobile, email and rego across the whole database (paged 50 at a time), with filters for VIP, owing, rewards, lapsed (60+ days), new and online-account customers.
+  - Exports are neutralised against spreadsheet formula injection.
+  - CSV import matches on mobile, runs a dry run first, imports in batches of 1,000 (up to 20,000 rows per file), and understands separate first/last-name columns and loose vehicle words ("SUV" → 4WD).
+  - "Delete personal details" anonymises the customer rather than deleting them, so invoices and GST totals still add up.
+  - Merge keeps the open record's name and moves everything else across. Both are admin-only.
 - **Demo data is fully removable.** Every demo row is flagged; demo invoices are numbered `DEMO-…` so they don't use up real invoice numbers.
 
 ## Env vars (all optional)

@@ -22,6 +22,8 @@ export interface ShopSettings {
   manual_discount_admin_threshold: number | string;
   alert_sound: "chime" | "bell" | "off";
   idle_lock_minutes: number;
+  loyalty_enabled: boolean;
+  loyalty_tiers: Array<{ name: string; min_visits: number }>;
 }
 
 export interface ServiceRow {
