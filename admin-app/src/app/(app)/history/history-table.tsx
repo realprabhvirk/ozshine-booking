@@ -8,7 +8,7 @@ import { formatDate, formatMoney, formatTime, isoDateDaysAgo, todayISODate } fro
 import type { BookingWithDetails } from "@/lib/supabase/types";
 
 const HISTORY_SELECT =
-  "*, customer:customers(id,name,phone,email), vehicle:vehicles(id,rego,make_model), service:services(id,name,price_from), processed_by:staff(id,name)";
+  "*, customer:customers(id,name,phone,email), vehicle:vehicles(id,rego,make_model), service:services(id,name,price_from), processed_by:staff!processed_by_staff_id(id,name)";
 
 export function HistoryTable() {
   const staff = useStaff();
