@@ -24,6 +24,17 @@ Both apps deploy automatically from `main` on Vercel (one project each).
    - point a custom domain at the booking site and set `NEXT_PUBLIC_SITE_URL`
 8. Later, once the owner approves the cost: sign up for Twilio (SMS) and/or Resend (email), add their keys in Vercel, then Messages → Setup → **Switch to live sending**.
 
+## Vercel settings (both projects)
+
+Each site is its own Vercel project, both connected to this one repo. They only work if each points at its own folder:
+
+| Project | Root Directory | Framework Preset | Env vars (Production + Preview + Development) |
+|---|---|---|---|
+| ozshine-booking (booking site) | `customer-app` | Next.js | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+| ozshine-admin (staff app) | `admin-app` | Next.js | same two (plus the optional ones in `docs/UPGRADE_NOTES.md`) |
+
+Leave Build Command, Output Directory and Install Command on their defaults. If the Root Directory is blank, Vercel publishes the raw repo files instead of the app: the home page shows 404 while files like `/CLAUDE.md` load.
+
 ## Where things are (staff app)
 
 | Menu | What it's for |
