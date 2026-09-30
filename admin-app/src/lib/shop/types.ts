@@ -5,6 +5,7 @@ import type { BookingSource, BookingStatus, InvoiceStatus, VehicleType } from "@
 export type DayHours = { open: string; close: string; closed: boolean };
 
 export interface ShopSettings {
+  id: string;
   location_id: string;
   business_name: string;
   abn: string | null;
@@ -24,11 +25,27 @@ export interface ShopSettings {
   idle_lock_minutes: number;
   loyalty_enabled: boolean;
   loyalty_tiers: Array<{ name: string; min_visits: number }>;
+  min_lead_minutes: number;
+  max_advance_days: number;
+  cancel_cutoff_hours: number;
+  require_approval: boolean;
+  online_booking_enabled: boolean;
+  invoice_prefix: string;
+  review_url: string | null;
+  demo_banner: boolean;
+  display_key: string;
+  display_messages: string[];
+  message_provider: "demo" | "live";
+  alert_volume: number | string;
 }
 
 export interface ServiceRow {
   id: string;
   name: string;
+  tagline: string | null;
+  description: string | null;
+  includes: string[];
+  category: string | null;
   price_from: number | string;
   price_small_wagon: number | string | null;
   price_van: number | string | null;

@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, MoreHorizontal } from "lucide-react";
 import logo from "@/assets/oz-shine-logo.png";
 import { cn } from "@/lib/core/cn";
 import { ThemeToggle } from "@/components/ui/theme";
@@ -14,6 +15,18 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { staff, supabase } = useShop();
+  const [more, setMore] = useState(false);
+  const primary = NAV_ITEMS.filter((i) => !i.more);
+  const extra = NAV_ITEMS.filter((i) => i.more);
+  const extraActive = extra.some((i) => i.match(pathname));
+
+  // Close the phone "More" menu on navigation and on Escape.
+  useEffect(() => {
+    if (!more) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMore(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [more]);
 
   async function logout() {
     await supabase.auth.signOut();
@@ -31,7 +44,7 @@ export function Sidebar() {
         <div className="flex h-16 items-center justify-center border-b border-line px-4 2xl:justify-start 2xl:px-5">
           <Image src={logo} alt="OzShine" priority className="h-7 w-auto 2xl:h-8" />
         </div>
-        <ul className="flex flex-1 flex-col gap-1 p-3">
+        <ul className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
           {NAV_ITEMS.map((item) => {
             const active = item.match(pathname);
             const Icon = item.icon;
@@ -73,19 +86,58 @@ export function Sidebar() {
         </div>
       </nav>
 
-      {/* Phones: bottom tab bar. */}
+      {/* Phones: bottom tab bar, with the less-used sections under "More". */}
+      {more && <button type="button" aria-label="Close menu" className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={() => setMore(false)} />}
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-panel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden print:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-panel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden print:hidden"
       >
+        {more && (
+          <div id="more-menu" className="border-b border-line p-2">
+            <ul className="grid grid-cols-3 gap-1">
+              {extra.map((item) => {
+                const active = item.match(pathname);
+                const Icon = item.icon;
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={() => setMore(false)}
+                      aria-current={active ? "page" : undefined}
+                      className={cn("flex h-16 flex-col items-center justify-center gap-1 rounded-xl text-xs font-semibold", active ? "bg-accent text-accent-fg" : "text-fg-muted hover:bg-raised")}
+                    >
+                      <Icon size={22} aria-hidden />
+                      {item.label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="mt-2 flex items-center gap-2 border-t border-line px-2 pt-2">
+              <p className="min-w-0 flex-1 truncate text-sm">
+                <span className="font-semibold">{staff.name}</span> <span className="text-fg-faint capitalize">· {staff.role}</span>
+              </p>
+              <ThemeToggle />
+              <button
+                type="button"
+                onClick={logout}
+                className="flex h-12 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-fg-muted hover:bg-raised hover:text-fg"
+              >
+                <LogOut size={18} aria-hidden />
+                Log out
+              </button>
+            </div>
+          </div>
+        )}
         <ul className="grid grid-cols-6">
-          {NAV_ITEMS.map((item) => {
+          {primary.map((item) => {
             const active = item.match(pathname);
             const Icon = item.icon;
             return (
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  onClick={() => setMore(false)}
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "flex h-16 flex-col items-center justify-center gap-1 text-[10px] font-semibold",
@@ -98,6 +150,18 @@ export function Sidebar() {
               </li>
             );
           })}
+          <li>
+            <button
+              type="button"
+              aria-expanded={more}
+              aria-controls="more-menu"
+              onClick={() => setMore((m) => !m)}
+              className={cn("flex h-16 w-full flex-col items-center justify-center gap-1 text-[10px] font-semibold", more || extraActive ? "text-accent" : "text-fg-muted")}
+            >
+              <MoreHorizontal size={22} aria-hidden />
+              More
+            </button>
+          </li>
         </ul>
       </nav>
     </>
