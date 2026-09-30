@@ -6,7 +6,7 @@ import { InvoiceView } from "./invoice-view";
 export const dynamic = "force-dynamic";
 
 const INVOICE_SELECT =
-  "*, customer:customers(id,name,phone,email), vehicle:vehicles(id,rego,make_model), service:services(id,name,price_from), processed_by:staff(id,name), location:locations(id,name,address,phone)";
+  "*, customer:customers(id,name,phone,email), vehicle:vehicles(id,rego,make_model), service:services(id,name,price_from), processed_by:staff!processed_by_staff_id(id,name), location:locations(id,name,address,phone)";
 
 export default async function InvoicePage({
   params,
