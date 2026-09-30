@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarCheck, Car, Check, Clock, Crown, Gift, PlayCircle, UserCheck, UserPlus } from "lucide-react";
+import { CalendarCheck, Car, Check, Clock, Crown, Gift, PlayCircle, UserCheck, UserPlus, X } from "lucide-react";
 import { cn } from "@/lib/core/cn";
 import { errorMessage, toAppError } from "@/lib/core/errors";
 import { formatCents, gstFromInclusiveCents } from "@/lib/core/money";
@@ -19,6 +19,8 @@ import { Tabs } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import { useShop } from "@/components/shop-context";
 import { createStaffBooking, createWalkin } from "@/lib/shop/actions";
+import { CustomerPicker, CustomerResult, useCustomerSearch } from "@/components/customers/customer-picker";
+import type { DirectoryRow } from "@/lib/shop/customers";
 import { addonsTotalCents, jobMinutes, servicePriceCents } from "@/lib/shop/pricing";
 import { z } from "zod";
 
@@ -41,11 +43,13 @@ export function NewSaleClient({
   initialDate,
   initialTime,
   initialPhone = "",
+  initialCustomerId = null,
 }: {
   initialMode: Mode;
   initialDate: string | null;
   initialTime: string | null;
   initialPhone?: string;
+  initialCustomerId?: string | null;
 }) {
   const { supabase, services, addons, bays } = useShop();
   const router = useRouter();
@@ -72,6 +76,51 @@ export function NewSaleClient({
   const service = activeServices.find((s) => s.id === serviceId) ?? null;
   const subtotal = service ? servicePriceCents(service, vehicleType) + addonsTotalCents(activeAddons, addonIds) : 0;
   const minutes = jobMinutes(service, activeAddons, addonIds);
+
+  // ---- Picked customer (from search) ---------------------------------------
+  // Beats the automatic match below: the booking goes to exactly this person.
+  const [picked, setPicked] = useState<KnownCustomer | null>(null);
+  const [pickedVehicles, setPickedVehicles] = useState<KnownVehicle[]>([]);
+
+  async function pickCustomer(r: DirectoryRow) {
+    setPicked({ id: r.id, name: r.name, phone: r.phone, email: r.email, is_vip: r.is_vip, visit_count: r.visit_count, unused_rewards: r.unused_rewards, last_visit_at: r.last_visit_at });
+    setName(r.name);
+    setPhone(r.phone ?? "");
+    setEmail(r.email ?? "");
+    setErrors({});
+    const v = await supabase.from("vehicles").select("id, rego, make_model, colour, vehicle_type").eq("customer_id", r.id).is("archived_at", null).order("is_primary", { ascending: false });
+    const list = (v.data ?? []) as KnownVehicle[];
+    setPickedVehicles(list);
+    if (list[0]) pickVehicle(list[0]);
+  }
+
+  // Opened from a customer's profile: start with them picked.
+  useEffect(() => {
+    if (!initialCustomerId) return;
+    let cancelled = false;
+    supabase
+      .from("customer_directory")
+      .select("id, name, phone, email, is_vip, visit_count, unused_rewards, last_visit_at, regos")
+      .eq("id", initialCustomerId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data) void pickCustomer(data as DirectoryRow);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once for the id in the link
+  }, [initialCustomerId, supabase]);
+
+  function clearPicked() {
+    setPicked(null);
+    setPickedVehicles([]);
+    setName("");
+    setPhone("");
+    setEmail("");
+    setRego("");
+    setMakeModel("");
+  }
 
   // ---- Returning customer lookup (by phone, then by rego) ----------------
   const [known, setKnown] = useState<KnownCustomer | null>(null);
@@ -129,6 +178,14 @@ export function NewSaleClient({
     };
   }, [phoneKey, regoKey, supabase]);
 
+  // Who the booking is for: the picked customer, else the automatic match.
+  const customer = picked ?? known;
+  const customerVehicles = picked ? pickedVehicles : knownVehicles;
+  // Typed mobile belongs to a different existing customer than the one picked.
+  const phoneClash = picked && known && known.id !== picked.id ? known : null;
+  // "Already a customer?" suggestions while typing a name with nobody picked.
+  const nameSearch = useCustomerSearch(!customer ? name : "", 3);
+
   function pickVehicle(v: KnownVehicle) {
     setRego(v.rego ?? "");
     setVehicleType(v.vehicle_type);
@@ -182,7 +239,7 @@ export function NewSaleClient({
   function validate(requirePhone: boolean) {
     const schema = z.object({
       phone: requirePhone ? phoneSchema : optionalPhoneSchema,
-      name: requirePhone && !known ? nameSchema : z.string().trim().max(80),
+      name: requirePhone && !customer ? nameSchema : z.string().trim().max(80),
       email: optionalEmailSchema,
       rego: optionalRegoSchema,
     });
@@ -199,6 +256,7 @@ export function NewSaleClient({
     setBusy(startNow ? "start" : "queue");
     try {
       const r = await createWalkin(supabase, {
+        customer_id: customer?.id,
         vehicle_type: vehicleType,
         service_id: serviceId,
         addon_ids: addonIds,
@@ -229,6 +287,7 @@ export function NewSaleClient({
     setBusy("book");
     try {
       const r = await createStaffBooking(supabase, {
+        customer_id: customer?.id,
         vehicle_type: vehicleType,
         service_id: serviceId,
         addon_ids: addonIds,
@@ -423,30 +482,45 @@ export function NewSaleClient({
           <Card>
             <CardHeader
               title="Customer"
-              action={looking ? <Spinner size={16} label="Looking up customer" /> : known ? <Badge tone="ok"><UserCheck size={12} aria-hidden /> Returning</Badge> : phoneKey ? <Badge tone="info"><UserPlus size={12} aria-hidden /> New</Badge> : null}
+              action={
+                looking && !picked ? (
+                  <Spinner size={16} label="Looking up customer" />
+                ) : customer ? (
+                  <Badge tone="ok">
+                    <UserCheck size={12} aria-hidden /> Returning
+                  </Badge>
+                ) : phoneKey || name.trim() ? (
+                  <Badge tone="info">
+                    <UserPlus size={12} aria-hidden /> New
+                  </Badge>
+                ) : null
+              }
             />
             <CardBody className="space-y-4">
-              <Field label="Mobile" required={mode === "later"} optional={mode === "now"} error={errors.phone}>
-                <Input inputMode="tel" autoComplete="off" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0412 345 678" />
-              </Field>
-              {known && (
+              {customer ? (
                 <div className="rounded-xl bg-ok/10 px-4 py-3 ring-1 ring-ok/30 ring-inset">
-                  <p className="flex items-center gap-2 font-semibold">
-                    {known.is_vip && <Crown size={16} className="text-warn" aria-label="VIP" />}
-                    {known.name}
-                  </p>
-                  <p className="text-sm text-fg-muted">
-                    {known.visit_count} visit{known.visit_count === 1 ? "" : "s"}
-                    {known.last_visit_at && ` · last ${formatDay(known.last_visit_at.slice(0, 10))}`}
-                  </p>
-                  {known.unused_rewards > 0 && (
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-center gap-2 font-semibold">
+                        {customer.is_vip && <Crown size={16} className="text-warn" aria-label="VIP" />}
+                        {customer.name}
+                      </p>
+                      <p className="text-sm text-fg-muted">
+                        {customer.visit_count} visit{customer.visit_count === 1 ? "" : "s"}
+                        {customer.last_visit_at && ` · last ${formatDay(customer.last_visit_at.slice(0, 10))}`}
+                        {!picked && " · matched by " + (phoneKey ? "mobile" : "rego")}
+                      </p>
+                    </div>
+                    {picked && <Button size="icon-sm" variant="ghost" icon={X} aria-label="Pick a different customer" onClick={clearPicked} />}
+                  </div>
+                  {customer.unused_rewards > 0 && (
                     <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-ok-ink">
-                      <Gift size={14} aria-hidden /> {known.unused_rewards} reward{known.unused_rewards > 1 ? "s" : ""} to use at checkout
+                      <Gift size={14} aria-hidden /> {customer.unused_rewards} reward{customer.unused_rewards > 1 ? "s" : ""} to use at checkout
                     </p>
                   )}
-                  {knownVehicles.length > 0 && (
+                  {customerVehicles.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {knownVehicles.map((v) => (
+                      {customerVehicles.map((v) => (
                         <Button key={v.id} size="sm" variant={normalizeRego(rego) === v.rego ? "primary" : "secondary"} onClick={() => pickVehicle(v)}>
                           <span className="font-mono">{v.rego ?? "No rego"}</span>
                           <span className="font-normal opacity-80">{v.make_model ?? VEHICLE_TYPE_LABELS[v.vehicle_type]}</span>
@@ -455,10 +529,37 @@ export function NewSaleClient({
                     </div>
                   )}
                 </div>
+              ) : (
+                <>
+                  <CustomerPicker onPick={pickCustomer} />
+                  <p className="flex items-center gap-3 text-xs font-semibold tracking-wide text-fg-faint uppercase">
+                    <span className="h-px flex-1 bg-line" />
+                    or a new customer
+                    <span className="h-px flex-1 bg-line" />
+                  </p>
+                </>
               )}
-              <Field label="Name" required={mode === "later" && !known} optional={mode === "now"} error={errors.name}>
-                <Input autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
+              <Field label="Mobile" required={mode === "later"} optional={mode === "now"} error={errors.phone} hint={picked && !picked.phone ? "Not on file yet. Adding it here saves it to their record." : undefined}>
+                <Input inputMode="tel" autoComplete="off" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0412 345 678" />
               </Field>
+              {phoneClash && (
+                <Notice tone="warn">
+                  That mobile belongs to <b>{phoneClash.name}</b>. The booking stays with {picked?.name}, and the number won&apos;t be moved.
+                </Notice>
+              )}
+              {!picked && (
+                <Field label="Name" required={mode === "later" && !customer} optional={mode === "now"} error={errors.name}>
+                  <Input autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
+                </Field>
+              )}
+              {!customer && nameSearch.rows.length > 0 && (
+                <div className="rounded-xl bg-sunken p-1.5 ring-1 ring-line">
+                  <p className="px-3 pt-1.5 pb-1 text-xs font-semibold text-fg-muted">Already a customer? Tap to use their record:</p>
+                  {nameSearch.rows.slice(0, 3).map((r) => (
+                    <CustomerResult key={r.id} row={r} onPick={pickCustomer} />
+                  ))}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Rego" optional error={errors.rego}>
                   <Input autoComplete="off" value={rego} onChange={(e) => setRego(e.target.value.toUpperCase())} className="font-mono uppercase" />

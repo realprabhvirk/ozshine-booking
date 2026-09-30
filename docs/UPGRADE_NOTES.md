@@ -85,6 +85,11 @@ Decision log for the V2 build (all 10 phases merged to `main`). Owner handover: 
     - It refreshes every 15 seconds and reloads itself twice a day. A new link can be made at any time, which kills the old one.
   - **Feedback & reviews** (Messages tab): every rating customers leave. Ratings of 3 stars or less sit in "To follow up" until someone marks them sorted, with one-tap call and message buttons.
   - Good ratings with a comment can be put on the website (first name + last initial). The website's reviews section only shows what's switched on here.
+- **Picking an existing customer on New sale (post-launch fix).** New sale has a "Find a customer" search (name, mobile, email or rego). Picking someone sends their id with the booking, and the database uses that exact customer.
+  - Typing a name also suggests existing customers with that name.
+  - "Book" buttons on a customer's profile open New sale with them already picked.
+  - A missing mobile/email is filled in from what's typed, but a mobile that belongs to another customer is never moved.
+  - This needs `supabase/patch_customer_pick.sql` (also folded into `upgrade_v2.sql`). Until it's run, bookings fall back to matching by mobile/rego as before.
 - **Demo data is fully removable.** Every demo row is flagged; demo invoices are numbered `DEMO-…` so they don't use up real invoice numbers.
 
 ## Env vars (all optional)

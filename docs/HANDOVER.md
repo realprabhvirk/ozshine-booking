@@ -47,7 +47,7 @@ The shop runs on **one owner login** (admin). Everything done in the app is reco
 - **Errors:** functions raise `oz_raise(CODE, message)`, and `lib/core/errors.ts` turns codes into friendly text.
 - **Live updates:** Supabase Realtime on bookings, invoices and payments, plus a 60-second backup poll. The public booking page and the TV poll instead, since the public role can't subscribe to private tables.
 - **Messages:** everything goes to `message_outbox`. Demo mode marks messages "simulated". In live mode the daily cron (`admin-app/src/app/api/cron/messages`, `vercel.json`) hands them to Twilio/Resend. It's authenticated by `CRON_SECRET`, which the database checks against a bcrypt hash, so **no service-role key is used anywhere**.
-- **Tests:** `supabase/tests` (91, real SQL in PGlite), plus `npm test` in each app. Run `npm run typecheck && npm run lint && npm run build` in an app before a PR.
+- **Tests:** `supabase/tests` (92, real SQL in PGlite), plus `npm test` in each app. Run `npm run typecheck && npm run lint && npm run build` in an app before a PR.
 - **Env vars:** see the table in `docs/UPGRADE_NOTES.md`. Only the Supabase URL and anon key are required.
 
 ## Known limitations

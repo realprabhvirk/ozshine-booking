@@ -27,7 +27,7 @@ ozshine-booking/
     upgrade_v2.sql  <- additive, idempotent upgrade the owner pasted into the LIVE project (source of truth)
     schema.sql      <- generated (supabase/tests: npm run build-schema) — brand-new empty project only
     post_merge_hardening.sql / rollback_hardening.sql, seed_demo.sql / remove_demo.sql
-    tests/          <- PGlite test suite (91 tests): npm test
+    tests/          <- PGlite test suite (92 tests): npm test
   docs/             <- UPGRADE_NOTES, HANDOVER, TEST_PLAN, SUPABASE_STEPS
   CLAUDE.md         <- this file
 ```
