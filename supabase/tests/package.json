@@ -1,0 +1,13 @@
+{
+  "name": "ozshine-sql-tests",
+  "private": true,
+  "type": "module",
+  "description": "In-process Postgres (PGlite) tests for the OzShine Supabase SQL. Not part of either app.",
+  "scripts": {
+    "test": "node run.mjs",
+    "build-schema": "node build-schema.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8"
+  }
+}
