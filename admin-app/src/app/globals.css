@@ -152,6 +152,11 @@ body {
   to { opacity: 1; transform: none; }
 }
 
+/* Match the page background to the theme (overscroll, behind the layout). */
+:root[data-theme="dark"] body {
+  background: var(--oz-canvas);
+}
+
 /* Native <dialog> backdrop for Dialog / Sheet */
 dialog.oz-dialog::backdrop {
   background: rgb(5 7 10 / 0.6);

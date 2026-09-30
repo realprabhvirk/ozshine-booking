@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate, formatMoney, formatTime } from "@/lib/format";
 import type { Customer, BookingWithDetails } from "@/lib/supabase/types";
 
-export function CustomerLookup() {
+export function CustomerLookup({ initialQuery = "" }: { initialQuery?: string }) {
   const [supabase] = useState(() => createClient());
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [results, setResults] = useState<Customer[]>([]);
@@ -26,7 +26,10 @@ export function CustomerLookup() {
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
-    const q = query.trim();
+    await runSearch(query.trim());
+  }
+
+  async function runSearch(q: string) {
     if (!q) return;
 
     setSearching(true);
@@ -77,6 +80,12 @@ export function CustomerLookup() {
     setResults(Array.from(matches.values()));
     setSearching(false);
   }
+
+  // Opened from global search with ?q= — run that search straight away.
+  useEffect(() => {
+    if (initialQuery.trim()) void runSearch(initialQuery.trim());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function selectCustomer(customer: Customer) {
     setSelected(customer);
