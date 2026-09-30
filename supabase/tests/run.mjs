@@ -924,6 +924,95 @@ await test("rollback_hardening.sql restores the V1 write paths", async () => {
   await db.exec(read("../post_merge_hardening.sql"));
 });
 
+// ===========================================================================
+// TEST 6 — one owner login, no staff accounts (solo mode)
+// ===========================================================================
+suite("Test 6 · single admin login (solo mode)");
+const solo = await makeDb();
+const OWNER = "00000000-0000-4000-8000-0000000000aa";
+await loadV1(solo);
+await solo.exec(`insert into auth.users (id, email) values ('${OWNER}', 'owner@ozshine.test');
+  insert into staff (auth_user_id, location_id, name, role) select '${OWNER}', id, 'Shop Owner', 'staff' from locations;`);
+await solo.exec(UP);
+const soloCall = (sql, params) => as(solo, "authenticated", OWNER, () => rpc(solo, sql, params));
+await test("the only staff login is promoted to admin by the upgrade", async () => {
+  eq((await solo.query(`select role from staff`)).rows[0].role, "admin");
+});
+await test("no PIN needed: walk-in, invoice, payment and settings work with no session", async () => {
+  eq(await soloCall(`select pin_mode_enabled()`), false);
+  const svc = (await solo.query(`select id from services where name = 'OzShine Wash'`)).rows[0].id;
+  const w = await soloCall(`select create_walkin_order($1::jsonb, null)`, [JSON.stringify({ vehicle_type: "sedan", service_id: svc, start_now: true })]);
+  await soloCall(`select advance_booking($1, 'ready', null)`, [w.booking_id]);
+  const inv = await soloCall(`select issue_invoice($1, null)`, [w.booking_id]);
+  await soloCall(`select record_payment($1, 40, 'eftpos', null, null)`, [inv]);
+  await soloCall(`select advance_booking($1, 'completed', null)`, [w.booking_id]);
+  await soloCall(`select admin_save('bays', null, '{"name":"Bay 4"}'::jsonb, null)`);
+  const b = (await solo.query(`select processed_by_staff_id, status from bookings where id = $1`, [w.booking_id])).rows[0];
+  const owner = (await solo.query(`select id from staff`)).rows[0].id;
+  eq([b.status, b.processed_by_staff_id], ["completed", owner], "attributed to the owner");
+});
+await test("adding a second staff member switches PINs on", async () => {
+  await solo.exec(`insert into auth.users (id, email) values ('00000000-0000-4000-8000-0000000000ab', 'extra@ozshine.test');
+    insert into staff (auth_user_id, location_id, name, role) select '00000000-0000-4000-8000-0000000000ab', id, 'Extra', 'staff' from locations;`);
+  eq(await soloCall(`select pin_mode_enabled()`), true);
+  await expectError(soloCall(`select admin_save('bays', null, '{"name":"Bay 5"}'::jsonb, null)`), "PIN_REQUIRED");
+  await solo.exec(`update staff set active = false where name = 'Extra'`);
+  await soloCall(`select admin_save('bays', null, '{"name":"Bay 5"}'::jsonb, null)`);
+});
+
+// ===========================================================================
+// TEST 7 — the apps' TypeScript rules match the SQL
+// ===========================================================================
+suite("Test 7 · app helpers agree with the database");
+const coreDir = (app) => join(here, `../../${app}/src/lib/core`);
+await test("lib/core is identical in admin-app and customer-app", async () => {
+  const { readdirSync } = await import("node:fs");
+  const a = readdirSync(coreDir("admin-app")).sort();
+  const c = readdirSync(coreDir("customer-app")).sort();
+  eq(c, a, "same files");
+  for (const f of a) {
+    ok(readFileSync(join(coreDir("admin-app"), f), "utf8") === readFileSync(join(coreDir("customer-app"), f), "utf8"),
+      `${f} differs between the apps — copy it across`);
+  }
+});
+const phoneTs = await import(join(coreDir("admin-app"), "phone.ts"));
+const moneyTs = await import(join(coreDir("admin-app"), "money.ts"));
+const statusTs = await import(join(coreDir("admin-app"), "status.ts"));
+await test("phone/rego normalisation: TS === SQL", async () => {
+  const inputs = ["0412 345 678", "+61 412 345 678", "61412345678", "+61 0412 345 678", "412345678", "(07) 3123 4567",
+    "0064 21 123 4567", "+1 415 555 0100", "", "  ", "12", "0412-345-678 ", "00", "+", "61 7 3123 4567", "0412345678901"];
+  for (const i of inputs) {
+    const sql = (await db.query(`select normalize_au_phone($1) n`, [i])).rows[0].n;
+    eq(phoneTs.normalizeAuPhone(i), sql, JSON.stringify(i));
+    const v = (await db.query(`select is_valid_phone(normalize_au_phone($1)) v`, [i])).rows[0].v;
+    eq(phoneTs.isValidPhone(phoneTs.normalizeAuPhone(i)), v, `valid ${JSON.stringify(i)}`);
+  }
+  for (const r of ["abc 123", "ABC-123", "a.b c", "", "  ", "xyz\t789"]) {
+    eq(phoneTs.normalizeRego(r), (await db.query(`select normalize_rego($1) r`, [r])).rows[0].r, JSON.stringify(r));
+  }
+});
+await test("GST from inclusive totals: TS === SQL (every cent to $500)", async () => {
+  const sql = (await db.query(`select c, (gst_from_inclusive(c / 100.0) * 100)::int g from generate_series(0, 50000) c`)).rows;
+  const bad = sql.filter((r) => moneyTs.gstFromInclusiveCents(r.c) !== r.g);
+  eq(bad.slice(0, 3), [], "mismatches");
+});
+await test("booking status flow: TS === SQL", async () => {
+  for (const s of statusTs.BOOKING_STATUSES) {
+    const sql = (await db.query(`select legal_next_statuses($1) n`, [s])).rows[0].n;
+    eq(statusTs.legalNextStatuses(s), sql, s);
+  }
+  const holds = (await db.query(`select array_agg(s) a from unnest($1::text[]) s where holds_capacity(s)`, [statusTs.BOOKING_STATUSES])).rows[0].a;
+  eq(statusTs.ACTIVE_BOOKING_STATUSES, holds);
+});
+await test("every database error code has a friendly message in the apps", async () => {
+  const errorsSrc = readFileSync(join(coreDir("admin-app"), "errors.ts"), "utf8");
+  const sqlSrc = read("../upgrade_v2.sql");
+  const codes = new Set([...sqlSrc.matchAll(/oz_raise\('([A-Z_]+)'/g)].map((m) => m[1]));
+  for (const c of ["ONLINE_BOOKING_OFF", "TOO_FAR", "CLOSED", "OUTSIDE_HOURS", "PAST", "TOO_SOON", "SLOT_TAKEN"]) codes.add(c);
+  const missing = [...codes].filter((c) => !new RegExp(`\\b${c}:`).test(errorsSrc));
+  eq(missing, [], "codes missing from ERROR_MESSAGES");
+});
+
 // ---------------------------------------------------------------------------
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) {

@@ -4,7 +4,7 @@
   "type": "module",
   "description": "In-process Postgres (PGlite) tests for the OzShine Supabase SQL. Not part of either app.",
   "scripts": {
-    "test": "node run.mjs",
+    "test": "node --disable-warning=ExperimentalWarning run.mjs",
     "build-schema": "node build-schema.mjs"
   },
   "devDependencies": {

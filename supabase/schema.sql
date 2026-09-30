@@ -1257,6 +1257,14 @@ insert into customers (name, phone, is_walkin_placeholder, marketing_opt_in)
 select 'Walk-in Guest', null, true, false
 where not exists (select 1 from customers where is_walkin_placeholder);
 
+-- 4e2. The shop runs on ONE owner login. If a location has exactly one
+-- active staff account and no admin, make that account the admin so it can
+-- reach settings, refunds and reports.
+update staff s set role = 'admin'
+where s.active
+  and (select count(*) from staff x where x.location_id = s.location_id and x.active) = 1
+  and not exists (select 1 from staff x where x.location_id = s.location_id and x.role = 'admin');
+
 -- 4f. Referral codes for every customer that doesn't have one yet.
 do $$
 declare r record; c text;
@@ -1402,6 +1410,17 @@ $$;
 -- Resolve an "acting as" PIN session to a staff id. Every floor and money
 -- RPC calls this, so actions are always attributed to the person who entered
 -- their PIN — not just whoever the tablet is logged in as.
+-- PINs are only needed when more than one person works under the shop login.
+create or replace function public.pin_mode_enabled()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select (select count(*) from staff where active and location_id = staff_location_id()) > 1;
+$$;
+
 create or replace function public.resolve_actor(p_actor uuid, p_require_admin boolean default false)
 returns uuid
 language plpgsql
@@ -1415,7 +1434,19 @@ declare
 begin
   perform require_staff();
   if p_actor is null then
-    perform oz_raise('PIN_REQUIRED', 'Tap "Who''s working?" and enter your PIN first.');
+    -- Solo mode: while the shop has a single active staff login (the owner's
+    -- admin account) there's nobody to tell apart, so the login itself is the
+    -- actor and no PIN is needed. PINs switch on automatically as soon as a
+    -- second active staff member exists.
+    if pin_mode_enabled() then
+      perform oz_raise('PIN_REQUIRED', 'Tap "Who''s working?" and enter your PIN first.');
+    end if;
+    select * into st from staff where auth_user_id = auth.uid() and active limit 1;
+    if p_require_admin and st.role <> 'admin' then
+      perform oz_raise('ADMIN_REQUIRED', 'Only an admin can do that.');
+    end if;
+    perform set_config('oz.actor_staff_id', st.id::text, true);
+    return st.id;
   end if;
   select * into s from staff_sessions
   where token = p_actor and ended_at is null and auth_user_id = auth.uid();
@@ -6068,6 +6099,7 @@ to authenticated;
 -- Staff RPCs. Each one checks for an active staff login (and most for a
 -- PIN session) internally, so granting to `authenticated` is safe.
 grant execute on function
+  public.pin_mode_enabled(),
   public.list_staff_for_switcher(),
   public.verify_staff_pin(uuid, text),
   public.start_acting_session(uuid, text),

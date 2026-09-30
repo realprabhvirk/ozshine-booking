@@ -34,3 +34,133 @@ body {
     background: white;
   }
 }
+
+/* =============================================================================
+   V2 design tokens — OzShine ops console
+   -----------------------------------------------------------------------------
+   Dark-first "work tool" palette with a light mode. Everything V2 builds with
+   these names (bg-canvas, bg-panel, text-fg, border-line, bg-accent, the
+   status tones…). The V1 tokens above are left alone so the existing screens
+   look exactly the same until they're rebuilt.
+   Theme is chosen by <html data-theme="light|dark"> (see ThemeToggle).
+   ============================================================================= */
+:root {
+  --oz-canvas: #eef0f3;
+  --oz-panel: #ffffff;
+  --oz-raised: #f7f8fa;
+  --oz-sunken: #f1f3f6;
+  --oz-line: #dfe3e8;
+  --oz-line-strong: #c9ced6;
+  --oz-fg: #12151a;
+  --oz-fg-muted: #525b67;
+  --oz-fg-faint: #858e9a;
+  --oz-accent: #c61b1f;
+  --oz-accent-hover: #a8161a;
+  --oz-accent-fg: #ffffff;
+  --oz-focus: #c61b1f;
+  --oz-shadow: 0 1px 2px rgb(16 24 40 / 0.06), 0 1px 3px rgb(16 24 40 / 0.08);
+  --oz-shadow-lg: 0 20px 48px -12px rgb(16 24 40 / 0.28);
+
+  /* Status tones: solid colour + readable text colour on a soft tint */
+  --oz-neutral: #6b7280;  --oz-neutral-ink: #374151;
+  --oz-info: #2563eb;     --oz-info-ink: #1d4ed8;
+  --oz-violet: #7c3aed;   --oz-violet-ink: #6d28d9;
+  --oz-cyan: #0891b2;     --oz-cyan-ink: #0e7490;
+  --oz-ok: #16a34a;       --oz-ok-ink: #15803d;
+  --oz-warn: #d97706;     --oz-warn-ink: #b45309;
+  --oz-bad: #dc2626;      --oz-bad-ink: #b91c1c;
+  --oz-accent-ink: #a8161a;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --oz-canvas: #0b0d10;
+  --oz-panel: #13161b;
+  --oz-raised: #1a1e24;
+  --oz-sunken: #0e1014;
+  --oz-line: #252a32;
+  --oz-line-strong: #353b45;
+  --oz-fg: #eceef1;
+  --oz-fg-muted: #a1a9b4;
+  --oz-fg-faint: #6c7581;
+  --oz-accent: #e0262b;
+  --oz-accent-hover: #f03b40;
+  --oz-accent-fg: #ffffff;
+  --oz-focus: #ff5a5f;
+  --oz-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  --oz-shadow-lg: 0 24px 60px -12px rgb(0 0 0 / 0.7);
+
+  --oz-neutral: #8b95a3;  --oz-neutral-ink: #c3cad3;
+  --oz-info: #3b82f6;     --oz-info-ink: #93bbfd;
+  --oz-violet: #8b5cf6;   --oz-violet-ink: #c4b0fb;
+  --oz-cyan: #06b6d4;     --oz-cyan-ink: #7fdcec;
+  --oz-ok: #22c55e;       --oz-ok-ink: #86e3a8;
+  --oz-warn: #f59e0b;     --oz-warn-ink: #fcd07a;
+  --oz-bad: #ef4444;      --oz-bad-ink: #fca5a5;
+  --oz-accent-ink: #ff8a8d;
+  color-scheme: dark;
+}
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  --color-canvas: var(--oz-canvas);
+  --color-panel: var(--oz-panel);
+  --color-raised: var(--oz-raised);
+  --color-sunken: var(--oz-sunken);
+  --color-line: var(--oz-line);
+  --color-line-strong: var(--oz-line-strong);
+  --color-fg: var(--oz-fg);
+  --color-fg-muted: var(--oz-fg-muted);
+  --color-fg-faint: var(--oz-fg-faint);
+  --color-accent: var(--oz-accent);
+  --color-accent-hover: var(--oz-accent-hover);
+  --color-accent-fg: var(--oz-accent-fg);
+  --color-accent-ink: var(--oz-accent-ink);
+  --color-focus: var(--oz-focus);
+  --color-neutral: var(--oz-neutral);
+  --color-neutral-ink: var(--oz-neutral-ink);
+  --color-info: var(--oz-info);
+  --color-info-ink: var(--oz-info-ink);
+  --color-violet: var(--oz-violet);
+  --color-violet-ink: var(--oz-violet-ink);
+  --color-cyan: var(--oz-cyan);
+  --color-cyan-ink: var(--oz-cyan-ink);
+  --color-ok: var(--oz-ok);
+  --color-ok-ink: var(--oz-ok-ink);
+  --color-warn: var(--oz-warn);
+  --color-warn-ink: var(--oz-warn-ink);
+  --color-bad: var(--oz-bad);
+  --color-bad-ink: var(--oz-bad-ink);
+  --shadow-card: var(--oz-shadow);
+  --shadow-pop: var(--oz-shadow-lg);
+  --animate-oz-in: oz-in 160ms ease-out;
+  --animate-oz-sheet: oz-sheet 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-oz-toast: oz-toast 200ms ease-out;
+}
+
+@keyframes oz-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes oz-sheet {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+@keyframes oz-toast {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Native <dialog> backdrop for Dialog / Sheet */
+dialog.oz-dialog::backdrop {
+  background: rgb(5 7 10 / 0.6);
+  backdrop-filter: blur(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}

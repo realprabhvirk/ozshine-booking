@@ -30,3 +30,138 @@ body {
 html {
   scroll-behavior: smooth;
 }
+
+/* =============================================================================
+   V2 design tokens — OzShine public site
+   -----------------------------------------------------------------------------
+   Same token names as the staff app (bg-panel, text-fg, bg-accent, status
+   tones…) so the building blocks work in both, tuned to the OzShine brand:
+   red #c61b1f, deep ink blacks, glossy surfaces. Light by default; wrap a
+   section in .oz-dark for the dark glossy look (hero, footer, highlights).
+   The V1 tokens above are untouched so the current site looks the same.
+   ============================================================================= */
+:root {
+  --oz-canvas: #f6f6f7;
+  --oz-panel: #ffffff;
+  --oz-raised: #f7f7f8;
+  --oz-sunken: #f2f2f4;
+  --oz-line: #e4e4e8;
+  --oz-line-strong: #cfcfd6;
+  --oz-fg: #0f1013;
+  --oz-fg-muted: #555a63;
+  --oz-fg-faint: #8a8f99;
+  --oz-accent: #c61b1f;
+  --oz-accent-hover: #a8161a;
+  --oz-accent-fg: #ffffff;
+  --oz-accent-ink: #a8161a;
+  --oz-focus: #c61b1f;
+  --oz-shadow: 0 1px 2px rgb(15 16 19 / 0.05), 0 2px 8px rgb(15 16 19 / 0.06);
+  --oz-shadow-lg: 0 24px 60px -16px rgb(15 16 19 / 0.35);
+
+  --oz-neutral: #6b7280;  --oz-neutral-ink: #374151;
+  --oz-info: #2563eb;     --oz-info-ink: #1d4ed8;
+  --oz-violet: #7c3aed;   --oz-violet-ink: #6d28d9;
+  --oz-cyan: #0891b2;     --oz-cyan-ink: #0e7490;
+  --oz-ok: #16a34a;       --oz-ok-ink: #15803d;
+  --oz-warn: #d97706;     --oz-warn-ink: #b45309;
+  --oz-bad: #dc2626;      --oz-bad-ink: #b91c1c;
+}
+
+.oz-dark {
+  --oz-canvas: #0b0c0e;
+  --oz-panel: #141519;
+  --oz-raised: #1b1d22;
+  --oz-sunken: #0f1013;
+  --oz-line: rgb(255 255 255 / 0.1);
+  --oz-line-strong: rgb(255 255 255 / 0.2);
+  --oz-fg: #f4f4f5;
+  --oz-fg-muted: rgb(244 244 245 / 0.7);
+  --oz-fg-faint: rgb(244 244 245 / 0.45);
+  --oz-accent: #d91f24;
+  --oz-accent-hover: #ee2c31;
+  --oz-accent-ink: #ff8a8d;
+  --oz-focus: #ff5a5f;
+  --oz-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+
+  --oz-neutral-ink: #c3cad3;
+  --oz-info-ink: #93bbfd;
+  --oz-violet-ink: #c4b0fb;
+  --oz-cyan-ink: #7fdcec;
+  --oz-ok-ink: #86e3a8;
+  --oz-warn-ink: #fcd07a;
+  --oz-bad-ink: #fca5a5;
+  color: var(--oz-fg);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-canvas: var(--oz-canvas);
+  --color-panel: var(--oz-panel);
+  --color-raised: var(--oz-raised);
+  --color-sunken: var(--oz-sunken);
+  --color-line: var(--oz-line);
+  --color-line-strong: var(--oz-line-strong);
+  --color-fg: var(--oz-fg);
+  --color-fg-muted: var(--oz-fg-muted);
+  --color-fg-faint: var(--oz-fg-faint);
+  --color-accent: var(--oz-accent);
+  --color-accent-hover: var(--oz-accent-hover);
+  --color-accent-fg: var(--oz-accent-fg);
+  --color-accent-ink: var(--oz-accent-ink);
+  --color-focus: var(--oz-focus);
+  --color-neutral: var(--oz-neutral);
+  --color-neutral-ink: var(--oz-neutral-ink);
+  --color-info: var(--oz-info);
+  --color-info-ink: var(--oz-info-ink);
+  --color-violet: var(--oz-violet);
+  --color-violet-ink: var(--oz-violet-ink);
+  --color-cyan: var(--oz-cyan);
+  --color-cyan-ink: var(--oz-cyan-ink);
+  --color-ok: var(--oz-ok);
+  --color-ok-ink: var(--oz-ok-ink);
+  --color-warn: var(--oz-warn);
+  --color-warn-ink: var(--oz-warn-ink);
+  --color-bad: var(--oz-bad);
+  --color-bad-ink: var(--oz-bad-ink);
+  --shadow-card: var(--oz-shadow);
+  --shadow-pop: var(--oz-shadow-lg);
+  --animate-oz-in: oz-in 180ms ease-out;
+  --animate-oz-sheet: oz-sheet 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-oz-sheet-up: oz-sheet-up 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-oz-toast: oz-toast 200ms ease-out;
+}
+
+@keyframes oz-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes oz-sheet {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+@keyframes oz-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes oz-toast {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+dialog.oz-dialog::backdrop {
+  background: rgb(5 6 8 / 0.65);
+  backdrop-filter: blur(3px);
+}
+
+/* The signature glossy red: a lit top edge fading into brand red. */
+.oz-gloss {
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.16), rgb(255 255 255 / 0) 55%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
