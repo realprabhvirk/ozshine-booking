@@ -65,7 +65,8 @@ export function CustomerProfileClient({ initial }: { initial: CustomerProfile })
   const tier = settings?.loyalty_enabled !== false ? tierFor(visits, settings?.loyalty_tiers) : null;
   const upcoming = bookings.filter((b) => ["pending", "approved", "checked_in", "in_progress", "ready"].includes(b.status));
   const past = bookings.filter((b) => !upcoming.includes(b));
-  const phoneParam = c.phone ? `phone=${encodeURIComponent(c.phone)}` : "";
+  // New sale opens with this customer already picked.
+  const customerParam = `customer=${c.id}`;
 
   async function saveNote() {
     if (!note.trim()) return;
@@ -153,10 +154,10 @@ export function CustomerProfileClient({ initial }: { initial: CustomerProfile })
         </div>
         {!deleted && (
           <div className="flex flex-wrap gap-2">
-            <LinkButton href={`/new${phoneParam ? `?${phoneParam}` : ""}`} icon={PlayCircle}>
+            <LinkButton href={`/new${customerParam ? `?${customerParam}` : ""}`} icon={PlayCircle}>
               Walk-in
             </LinkButton>
-            <LinkButton href={`/new?mode=later${phoneParam ? `&${phoneParam}` : ""}`} icon={CalendarCheck}>
+            <LinkButton href={`/new?mode=later${customerParam ? `&${customerParam}` : ""}`} icon={CalendarCheck}>
               Book
             </LinkButton>
             <Button variant="primary" icon={Pencil} onClick={() => setEditOpen(true)}>

@@ -9,7 +9,8 @@ How to copy a SQL file: open it on GitHub → click **Copy raw file** (the two-s
 | Step | File | Status |
 |---|---|---|
 | 1. Upgrade the database to V2 | `supabase/upgrade_v2.sql` | ✅ Done (you ran it after Phase 1) |
-| 2. Lock down old direct-write permissions | `supabase/post_merge_hardening.sql` | ⏳ **Run this now.** V2 is live on both sites. |
+| 2. Lock down old direct-write permissions | `supabase/post_merge_hardening.sql` | ✅ Done |
+| 2b. Pick existing customers on New sale | `supabase/patch_customer_pick.sql` | ⏳ **Run this now** |
 | 3. Turn email confirmation back on | Authentication settings | ⏳ Before real customers sign up |
 | 4. Allow the password-reset link | Authentication → URL Configuration | ⏳ Recommended |
 | Demo data (optional) | `seed_demo.sql` / `remove_demo.sql` | Your call |
@@ -21,6 +22,12 @@ How to copy a SQL file: open it on GitHub → click **Copy raw file** (the two-s
 - It doesn't touch any data and is safe to run twice.
 - The last thing it prints is a small table. It should show **no** `INSERT` or `UPDATE` rows for customers, vehicles or bookings.
 - To undo (only if you ever went back to the V1 apps): run `supabase/rollback_hardening.sql`.
+
+## 2b. Customer-pick patch (run once)
+
+`supabase/patch_customer_pick.sql` lets a walk-in or phone booking go to the exact customer staff picked from search on **New sale**. Before this, bookings only matched by mobile or rego, so a customer typed in by name (or with no mobile on file) got duplicated. If a picked customer has no mobile or email yet, the one typed in is saved to their record, unless it already belongs to someone else.
+
+Additive, no data changes, safe to run twice. The last line prints `staff_resolve_customer`, which means it worked.
 
 ## 3. Email confirmation — turn it back on before going public
 

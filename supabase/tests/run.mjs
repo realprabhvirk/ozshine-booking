@@ -522,6 +522,27 @@ await test("walk-in with a rego finds the existing customer", async () => {
   const w = await staffCall(U.staff, `select create_walkin_order($1::jsonb, $2)`, [JSON.stringify({ vehicle_type: "sedan", service_id: ids.wash, rego: "abc-123" }), crewTok]);
   eq((await db.query(`select name from customers where id = $1`, [w.customer_id])).rows[0].name, "Jess Legacy");
 });
+await test("walk-in / phone booking for a picked customer reuses them (no duplicates)", async () => {
+  // A name-only customer (no mobile) — typing the name again used to create a copy.
+  const nameOnly = await staffCall(U.staff, `select create_walkin_order($1::jsonb, $2)`, [JSON.stringify({ vehicle_type: "sedan", service_id: ids.wash, name: "Picked Pat" }), crewTok]);
+  const before = Number((await db.query(`select count(*) from customers`)).rows[0].count);
+  const w = await staffCall(U.staff, `select create_walkin_order($1::jsonb, $2)`, [JSON.stringify({ vehicle_type: "sedan", service_id: ids.wash, customer_id: nameOnly.customer_id, name: "Picked Pat" }), crewTok]);
+  eq(w.customer_id, nameOnly.customer_id, "same customer");
+  // Phone booking for them adds the mobile to their record instead of making a new customer.
+  const r = await staffCall(U.staff, `select create_staff_booking($1::jsonb, $2)`, [JSON.stringify({ vehicle_type: "sedan", service_id: ids.wash, customer_id: nameOnly.customer_id, phone: "0400000190", name: "Picked Pat", date: ids.d4, time: "13:00" }), crewTok]);
+  eq(r.customer_id, nameOnly.customer_id, "same customer on phone booking");
+  eq(Number((await db.query(`select count(*) from customers`)).rows[0].count), before, "no new customer");
+  eq((await db.query(`select phone from customers where id = $1`, [nameOnly.customer_id])).rows[0].phone, "0400000190", "mobile filled in");
+  // A mobile that belongs to someone else is never moved onto the picked customer.
+  await staffCall(U.staff, `select create_walkin_order($1::jsonb, $2)`, [JSON.stringify({ vehicle_type: "sedan", service_id: ids.wash, name: "Other Olive", phone: "0400000191" }), crewTok]);
+  const other = await staffCall(U.staff, `select create_walkin_order($1::jsonb, $2)`, [JSON.stringify({ vehicle_type: "sedan", service_id: ids.wash, name: "No Phone Ned" }), crewTok]);
+  const x = await staffCall(U.staff, `select create_walkin_order($1::jsonb, $2)`, [JSON.stringify({ vehicle_type: "sedan", service_id: ids.wash, customer_id: other.customer_id, phone: "0400000191" }), crewTok]);
+  eq(x.customer_id, other.customer_id);
+  eq((await db.query(`select phone from customers where id = $1`, [other.customer_id])).rows[0].phone, null, "someone else's mobile not copied");
+  // Unknown id falls back to normal matching.
+  const y = await staffCall(U.staff, `select create_walkin_order($1::jsonb, $2)`, [JSON.stringify({ vehicle_type: "sedan", service_id: ids.wash, customer_id: "00000000-0000-0000-0000-000000000000", phone: "0400000191" }), crewTok]);
+  eq((await db.query(`select name from customers where id = $1`, [y.customer_id])).rows[0].name, "Other Olive", "fallback by phone");
+});
 await test("manual discounts need a reason and an admin above the threshold", async () => {
   await expectError(staffCall(U.staff, `select create_walkin_order($1::jsonb, $2)`, [JSON.stringify({ vehicle_type: "sedan", service_id: ids.wash, manual_discount: 5 }), crewTok]), "REASON_REQUIRED");
   await expectError(staffCall(U.staff, `select create_walkin_order($1::jsonb, $2)`, [JSON.stringify({ vehicle_type: "sedan", service_id: ids.wash, manual_discount: 25, manual_discount_reason: "Mate" }), crewTok]), "ADMIN_REQUIRED");

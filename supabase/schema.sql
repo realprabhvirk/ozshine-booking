@@ -3498,6 +3498,45 @@ begin
 end;
 $$;
 
+-- Staff picked an existing customer from search on the New sale screen: use
+-- them as-is (following a merge if there was one), filling in a missing
+-- mobile/email when it isn't already someone else's. Anything unusable
+-- (unknown id, deleted, the walk-in placeholder) falls back to the normal
+-- phone/rego/name matching, so a stale screen can never create a mismatch.
+create or replace function public.staff_resolve_customer(
+  p_customer_id uuid, p_name text, p_phone text, p_email text, p_rego text
+)
+returns uuid
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $$
+declare
+  c record;
+  ph text := normalize_au_phone(p_phone);
+  em text := nullif(lower(btrim(coalesce(p_email, ''))), '');
+begin
+  if p_customer_id is not null then
+    select * into c from customers where id = p_customer_id;
+    if found and c.merged_into_customer_id is not null then
+      select * into c from customers where id = c.merged_into_customer_id;
+    end if;
+    if found and c.anonymised_at is null and not c.is_walkin_placeholder then
+      if c.phone is null and ph is not null and is_valid_phone(ph)
+         and not exists (select 1 from customers where phone = ph and id <> c.id) then
+        update customers set phone = ph where id = c.id;
+      end if;
+      if c.email is null and em is not null and em ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
+        update customers set email = em where id = c.id;
+      end if;
+      return c.id;
+    end if;
+  end if;
+  return staff_find_or_create_customer(p_name, p_phone, p_email, p_rego);
+end;
+$$;
+
 create or replace function public.staff_find_or_create_vehicle(p_customer_id uuid, p_rego text, p_make text, p_type text)
 returns uuid
 language plpgsql
@@ -3586,7 +3625,7 @@ begin
     end if;
   end if;
 
-  cid := staff_find_or_create_customer(payload ->> 'name', payload ->> 'phone', payload ->> 'email', payload ->> 'rego');
+  cid := staff_resolve_customer(nullif(payload ->> 'customer_id', '')::uuid, payload ->> 'name', payload ->> 'phone', payload ->> 'email', payload ->> 'rego');
   vid := staff_find_or_create_vehicle(cid, payload ->> 'rego', payload ->> 'make_model', vt);
 
   subtotal := service_price_for(svc.id, vt) + coalesce((select sum(price) from addons where id = any(addon_ids) and active), 0);
@@ -3697,7 +3736,7 @@ begin
     end if;
   end if;
 
-  cid := staff_find_or_create_customer(payload ->> 'name', payload ->> 'phone', payload ->> 'email', null);
+  cid := staff_resolve_customer(nullif(payload ->> 'customer_id', '')::uuid, payload ->> 'name', payload ->> 'phone', payload ->> 'email', null);
   vid := staff_find_or_create_vehicle(cid, payload ->> 'rego', payload ->> 'make_model', vt);
   subtotal := service_price_for(svc.id, vt) + coalesce((select sum(price) from addons where id = any(addon_ids) and active), 0);
   if nullif(btrim(coalesce(payload ->> 'promo_code', '')), '') is not null then

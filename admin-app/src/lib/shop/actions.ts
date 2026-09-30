@@ -53,6 +53,9 @@ export function updateBookingDetails(
 }
 
 export type NewBookingPayload = {
+  // An existing customer picked from search. The database uses them as-is
+  // (and falls back to phone/rego/name matching if the id is unusable).
+  customer_id?: string;
   vehicle_type: string;
   service_id: string;
   addon_ids: string[];
