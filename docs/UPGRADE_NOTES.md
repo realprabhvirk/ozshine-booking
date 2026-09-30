@@ -66,11 +66,24 @@ Living document for the `feature/v2-shop-os` branch. Updated as each phase lands
   - The daily job runs through a key the database checks (only its bcrypt hash is stored), so the Supabase service-role key is never used.
   - Messages are claimed in batches and handed to Twilio/Resend. Each result (sent or failed, with the provider's error) is written back.
   - Campaigns send immediately. Scheduling for later is not built yet.
+- **Public booking site (Phase 8).**
+  - Rebuilt as a proper site: home page (services and prices by vehicle size, extras, how it works, rewards, reviews, hours, FAQ), a 4-step booking wizard at `/book`, a booking tracker at `/manage/<link>`, receipts at `/r/<link>` and customer accounts at `/account`.
+  - **Booking** shows only genuinely free times (checked again on submit). If a day is full, customers can leave their number for the waitlist.
+  - The price is always recalculated by the database. Promo codes are checked before submitting. Signed-in customers get their details and cars filled in and can attach an unused reward.
+  - A hidden honeypot field blocks form bots.
+  - "Send me special offers" is **unticked by default**: marketing needs a clear yes.
+  - **The tracker** shows each stage (booked → confirmed → dropped off → being washed → ready → done) and refreshes every 30 seconds. It lets customers add the booking to their calendar, change the time, cancel up to the cut-off, see their invoice, and leave a rating once the job is done.
+  - Ratings of 3 stars or less go privately to the shop. 5-star ratings are offered the public review link if one is set.
+  - **Accounts** use email + password. On first sign-in the account is linked to past visits by mobile/email (with the safety rule above). The dashboard shows visit count, tier, progress to the next reward, unused rewards, a referral link, upcoming bookings, history with receipts, saved cars and profile, plus a "delete my details" request.
+  - **Reviews** only appear on the home page when the shop has published real ones. There's no made-up social proof.
+  - **SEO:** page titles and descriptions, schema.org "AutoWash" data (hours, phone, address), a sitemap and robots.txt. Personal pages (booking links, receipts, accounts) are never indexed.
+  - Maps use an OpenStreetMap link (no Google APIs).
+  - The **demo banner** at the top is controlled by Settings → Business in the staff app.
 - **Demo data is fully removable.** Every demo row is flagged; demo invoices are numbered `DEMO-…` so they don't use up real invoice numbers.
 
 ## Env vars (all optional)
 
-Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are required (already set in Vercel). Everything below is optional, belongs in the **staff app** Vercel project only, and is documented in `admin-app/.env.local.example`. The Supabase service-role key is never needed.
+Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are required (already set in Vercel). Everything below is optional. The public site has one optional variable, `NEXT_PUBLIC_SITE_URL` (its public address, for search engines, set once a custom domain is live). The rest belong in the **staff app** Vercel project only and are documented in `admin-app/.env.local.example`. The Supabase service-role key is never needed.
 
 | Variable | What it does | If it's missing |
 |---|---|---|
@@ -84,7 +97,7 @@ Real sending also needs **Messages → Setup → Switch to live sending**. That 
 
 - Phone numbers can't be verified without real SMS, so phone-only guest records are "first come, first served" when someone signs up (see Decisions).
 - Tests run on Postgres 18 (PGlite); Supabase runs 15/17. The SQL avoids anything version-specific.
-- **Bug found in the live V1 site (confirmed by test):** the public booking form fails for any brand-new guest with "Couldn't save your details". It creates the customer and then reads the row back, but the public role isn't allowed to read customers. Returning guests fail differently: the public can't look up their phone, so the app tries to create a duplicate. V2's `create_public_booking` function does all of this server-side and fixes both. I haven't patched `main` directly (this branch never touches `main`).
+- **Bug found in the live V1 site (fixed in Phase 8):** the old public booking form failed for any brand-new guest ("Couldn't save your details"), because the public role can't read customers back after creating one, and returning guests created duplicates. The new site books through `create_public_booking`, which does the customer lookup server-side, so both problems are gone.
 
 - **Old invoice page only for old jobs.** Since Phase 4, `/invoices/<id>` shows the new invoice. Links to the old booking-based page go to the job's new invoice when it has one. Jobs finished before the upgrade (no new invoice) still show the original page.
 - **Hotfix shipped after the upgrade:** the old Order History and Invoice pages broke after `upgrade_v2.sql` because bookings gained a second link to staff (assigned staffer). Fixed in PR #11 by naming the link explicitly.

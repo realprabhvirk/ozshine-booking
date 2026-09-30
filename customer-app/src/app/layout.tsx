@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { ToastProvider } from "@/components/ui/toast";
+import { siteUrl } from "@/lib/site";
 import "./globals.css";
 
 const inter = Inter({
@@ -10,9 +11,22 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "OzShine Hand Car Wash — Beenleigh",
+  metadataBase: new URL(siteUrl()),
+  title: {
+    default: "OzShine Hand Car Wash Beenleigh — Book online",
+    template: "%s · OzShine Beenleigh",
+  },
   description:
-    "Book a hand wash, platinum wash, or full detail at OzShine Beenleigh. No account needed — book in under a minute.",
+    "Hand car wash, polish and detailing in Beenleigh, QLD. See real prices for your vehicle and book a time online in under a minute. No account needed.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    locale: "en_AU",
+    siteName: "OzShine Hand Car Wash",
+    title: "OzShine Hand Car Wash Beenleigh",
+    description: "Hand car wash and detailing in Beenleigh. Book online in under a minute.",
+  },
+  robots: { index: true, follow: true },
 };
 
 export const viewport: Viewport = {
@@ -24,7 +38,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en-AU" className={`${inter.variable} antialiased`}>
-      <body>
+      <body className="bg-canvas text-fg">
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
