@@ -70,6 +70,8 @@ body {
   --oz-warn: #d97706;     --oz-warn-ink: #b45309;
   --oz-bad: #dc2626;      --oz-bad-ink: #b91c1c;
   --oz-accent-ink: #a8161a;
+  /* Data colour for charts (validated: lightness, chroma, 3:1 on the panel). */
+  --oz-series-1: #2a78d6;
   color-scheme: light;
 }
 
@@ -98,6 +100,7 @@ body {
   --oz-warn: #f59e0b;     --oz-warn-ink: #fcd07a;
   --oz-bad: #ef4444;      --oz-bad-ink: #fca5a5;
   --oz-accent-ink: #ff8a8d;
+  --oz-series-1: #3987e5;
   color-scheme: dark;
 }
 
@@ -132,6 +135,7 @@ body {
   --color-warn-ink: var(--oz-warn-ink);
   --color-bad: var(--oz-bad);
   --color-bad-ink: var(--oz-bad-ink);
+  --color-series-1: var(--oz-series-1);
   --shadow-card: var(--oz-shadow);
   --shadow-pop: var(--oz-shadow-lg);
   --animate-oz-in: oz-in 160ms ease-out;

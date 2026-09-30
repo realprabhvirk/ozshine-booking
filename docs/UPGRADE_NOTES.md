@@ -50,6 +50,14 @@ Living document for the `feature/v2-shop-os` branch. Updated as each phase lands
   - CSV import matches on mobile, runs a dry run first, imports in batches of 1,000 (up to 20,000 rows per file), and understands separate first/last-name columns and loose vehicle words ("SUV" → 4WD).
   - "Delete personal details" anonymises the customer rather than deleting them, so invoices and GST totals still add up.
   - Merge keeps the open record's name and moves everything else across. Both are admin-only.
+- **Back office (Phase 6).**
+  - **Reports:** revenue and cars over time, services, extras, busiest hours heatmap, payment methods, new vs returning customers, cancellations, loyalty and promo use, with a CSV export. Revenue follows the same rule as everywhere else (completed jobs, incl. GST).
+  - **Settings** (admin only): business details and ABN, opening hours and booking rules, services and prices per vehicle size, extras and bays, closures (with Queensland public holiday suggestions and a warning when bookings already sit on a closed day), promo codes, loyalty rewards and member tiers, gift vouchers, and the audit log.
+  - Every settings change goes through one server function that only accepts a fixed list of fields per table and records a before/after entry in the audit log.
+  - Things used by past bookings (services, extras, promo codes) can't be deleted, only switched off, so old invoices stay intact.
+  - **Gift vouchers** are issued here after the customer has paid for them (e.g. as a custom invoice line). They're redeemed at checkout as a payment method and the balance goes down.
+  - **Alert sound** for new online requests: chime, bell or off, with a volume slider and a Test button (Settings → Business).
+  - On phones, History, Reports and Settings sit under a "More" tab in the bottom bar (along with log out and theme).
 - **Demo data is fully removable.** Every demo row is flagged; demo invoices are numbered `DEMO-…` so they don't use up real invoice numbers.
 
 ## Env vars (all optional)

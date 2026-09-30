@@ -31,10 +31,16 @@ export function useLiveData<T>({
   const [status, setStatus] = useState<LiveStatus>("connecting");
   const [error, setError] = useState<unknown>(null);
   const [refreshedAt, setRefreshedAt] = useState<number>(() => Date.now());
+  const { settings } = useShop();
+  const sound = useRef({ kind: settings?.alert_sound ?? "chime", volume: Number(settings?.alert_volume ?? 0.6) });
   const loadRef = useRef(load);
   const timer = useRef<number | null>(null);
   const inflight = useRef(false);
   const again = useRef(false);
+
+  useEffect(() => {
+    sound.current = { kind: settings?.alert_sound ?? "chime", volume: Number(settings?.alert_volume ?? 0.6) };
+  }, [settings?.alert_sound, settings?.alert_volume]);
 
   useEffect(() => {
     loadRef.current = load;
@@ -75,7 +81,7 @@ export function useLiveData<T>({
       .channel(`${channel}-${locationId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "bookings", filter: `location_id=eq.${locationId}` }, (payload) => {
         if (chime && payload.eventType === "INSERT" && (payload.new as { status?: string }).status === "pending") {
-          playAlertSound();
+          playAlertSound(sound.current.kind, sound.current.volume);
         }
         soon();
       })
