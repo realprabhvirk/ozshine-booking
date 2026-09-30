@@ -5,6 +5,7 @@ import { StaffProvider } from "@/components/staff-context";
 import { ShopProvider, type ShopStaff } from "@/components/shop-context";
 import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
+import { AutoRunner } from "@/components/shell/auto-runner";
 import { BookingActionsProvider } from "@/components/booking/action-host";
 import { BookingPanelHost } from "@/components/booking/booking-panel";
 import { fetchCatalogue } from "@/lib/shop/queries";
@@ -47,6 +48,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               </main>
             </div>
           </div>
+          <AutoRunner />
           <Suspense>
             <BookingPanelHost />
           </Suspense>

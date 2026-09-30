@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login"];
+// /api/cron checks its own secret (see app/api/cron/messages/route.ts).
+const PUBLIC_PATHS = ["/login", "/api/cron/"];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });

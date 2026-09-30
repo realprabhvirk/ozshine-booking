@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, CalendarCheck, Crown, Gift, Globe, History, Mail, MessageSquare, Pencil, Phone, PlayCircle, Plus, StickyNote, Trash2, UserX, Users,
+  ArrowLeft, CalendarCheck, Crown, Gift, Globe, History, Mail, MessageSquare, Pencil, Phone, PlayCircle, Plus, Send, StickyNote, Trash2, UserX, Users,
 } from "lucide-react";
 import { cn } from "@/lib/core/cn";
 import { formatCents, toCents } from "@/lib/core/money";
@@ -23,6 +23,8 @@ import { useShop } from "@/components/shop-context";
 import { CustomerDialog } from "@/components/customers/customer-dialog";
 import { VehicleDialog } from "@/components/customers/vehicle-dialog";
 import { MergeDialog } from "@/components/customers/merge-dialog";
+import { MessageDialog } from "@/components/customers/message-dialog";
+import { OUTBOX_STATUS, type OutboxStatus } from "@/lib/messaging";
 import { useLiveData } from "@/lib/shop/hooks";
 import { useBookingPanel } from "@/lib/shop/use-booking-panel";
 import { liveInvoice } from "@/lib/shop/types";
@@ -34,14 +36,6 @@ type Tab = "visits" | "cars" | "notes" | "rewards" | "timeline" | "messages";
 
 const REWARD_TONES = { issued: "ok", redeemed: "neutral", expired: "bad", void: "bad" } as const;
 const REWARD_LABELS = { issued: "Ready to use", redeemed: "Used", expired: "Expired", void: "Cancelled" } as const;
-const MSG_STATUS: Record<string, { label: string; tone: "ok" | "neutral" | "warn" | "bad" | "info" }> = {
-  simulated_sent: { label: "Sent (demo)", tone: "info" },
-  sent: { label: "Sent", tone: "ok" },
-  queued: { label: "Queued", tone: "neutral" },
-  failed: { label: "Failed", tone: "bad" },
-  skipped_opt_out: { label: "Opted out", tone: "warn" },
-  skipped_no_contact: { label: "No contact", tone: "warn" },
-};
 
 export function CustomerProfileClient({ initial }: { initial: CustomerProfile }) {
   const { supabase, staff, settings } = useShop();
@@ -59,6 +53,7 @@ export function CustomerProfileClient({ initial }: { initial: CustomerProfile })
   const [archive, setArchive] = useState<VehicleRecord | null>(null);
   const [mergeOpen, setMergeOpen] = useState(false);
   const [anonOpen, setAnonOpen] = useState(false);
+  const [messageOpen, setMessageOpen] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -400,13 +395,20 @@ export function CustomerProfileClient({ initial }: { initial: CustomerProfile })
 
       {tab === "messages" && (
         <TabPanel id="messages" idPrefix="cust">
+          {!deleted && (
+            <div className="mb-3 flex justify-end">
+              <Button icon={Send} onClick={() => setMessageOpen(true)}>
+                Send a message
+              </Button>
+            </div>
+          )}
           <Card>
             {messages.length === 0 ? (
               <EmptyState icon={MessageSquare} title="No messages yet" className="py-8" />
             ) : (
               <ul className="divide-y divide-line">
                 {messages.map((m) => {
-                  const st = MSG_STATUS[m.status] ?? { label: m.status, tone: "neutral" as const };
+                  const st = OUTBOX_STATUS[m.status as OutboxStatus] ?? { label: m.status, tone: "neutral" as const };
                   return (
                     <li key={m.id} className="px-5 py-4">
                       <div className="flex flex-wrap items-center gap-2">
@@ -447,6 +449,7 @@ export function CustomerProfileClient({ initial }: { initial: CustomerProfile })
         customerId={c.id}
         vehicle={vehicleEdit === "new" ? null : vehicleEdit}
       />
+      <MessageDialog key={messageOpen ? "msg-open" : "msg-closed"} open={messageOpen} onClose={() => setMessageOpen(false)} customer={c} />
       <MergeDialog key={mergeOpen ? "merge" : "closed"} open={mergeOpen} onClose={() => setMergeOpen(false)} keep={c} />
       <ConfirmDialog
         open={!!archive}
