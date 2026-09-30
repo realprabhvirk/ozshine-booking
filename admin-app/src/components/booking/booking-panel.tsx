@@ -163,10 +163,10 @@ function PanelBody({ id }: { id: string }) {
           ))}
           <p className="mt-1 text-sm">
             {inv ? (
-              <span className="inline-flex items-center gap-2">
-                <span className="font-mono">{inv.number}</span> <InvoiceBadge status={inv.status} />
+              <Link href={`/invoices/${inv.id}`} className="inline-flex items-center gap-2 hover:underline">
+                <span className="font-mono font-semibold text-accent-ink">{inv.number}</span> <InvoiceBadge status={inv.status} />
                 <span className="tabular-nums">{formatCents(toCents(inv.total))}</span>
-              </span>
+              </Link>
             ) : (
               <span className="text-fg-muted">
                 Estimate <span className="tabular-nums">{formatCents(toCents(b.price_estimate))}</span>

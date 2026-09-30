@@ -7,15 +7,20 @@ export type DayHours = { open: string; close: string; closed: boolean };
 export interface ShopSettings {
   location_id: string;
   business_name: string;
+  abn: string | null;
+  email: string | null;
   phone: string | null;
   address: string | null;
+  invoice_footer: string | null;
+  invoice_terms: string | null;
+  public_site_url: string | null;
   opening_hours: Record<string, DayHours>;
   bay_count: number;
   slot_minutes: number;
   max_concurrent_jobs: number;
   tax_rate: number | string;
   manual_discount_admin_threshold: number | string;
-  alert_sound: boolean | null;
+  alert_sound: "chime" | "bell" | "off";
   idle_lock_minutes: number;
 }
 
