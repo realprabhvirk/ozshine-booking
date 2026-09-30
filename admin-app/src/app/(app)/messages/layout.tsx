@@ -5,6 +5,7 @@ const TABS = [
   { href: "/messages/campaigns", label: "Campaigns" },
   { href: "/messages/automations", label: "Automatic messages" },
   { href: "/messages/templates", label: "Wording" },
+  { href: "/messages/feedback", label: "Feedback & reviews" },
   { href: "/messages/setup", label: "Setup" },
 ];
 
