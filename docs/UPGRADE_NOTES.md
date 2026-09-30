@@ -1,6 +1,6 @@
 # OzShine V2 "Shop OS" — Upgrade Notes
 
-Living document for the `feature/v2-shop-os` branch. Updated as each phase lands.
+Decision log for the V2 build (all 10 phases merged to `main`). Owner handover: `HANDOVER.md`. Tests: `TEST_PLAN.md`. Supabase steps: `SUPABASE_STEPS.md`.
 
 ## Assumptions I made
 
@@ -105,7 +105,7 @@ Real sending also needs **Messages → Setup → Switch to live sending**. That 
 - Tests run on Postgres 18 (PGlite); Supabase runs 15/17. The SQL avoids anything version-specific.
 - **Bug found in the live V1 site (fixed in Phase 8):** the old public booking form failed for any brand-new guest ("Couldn't save your details"), because the public role can't read customers back after creating one, and returning guests created duplicates. The new site books through `create_public_booking`, which does the customer lookup server-side, so both problems are gone.
 
-- **Old invoice page only for old jobs.** Since Phase 4, `/invoices/<id>` shows the new invoice. Links to the old booking-based page go to the job's new invoice when it has one. Jobs finished before the upgrade (no new invoice) still show the original page.
+- **Old invoice page only for old jobs.** Since Phase 4, `/invoices/<id>` shows the new invoice. Links to the old booking-based page go to the job's new invoice when it has one. Jobs finished before the upgrade (no new invoice) show the original page, which is now **read-only** (Phase 10). For an unpaid old job, "Create invoice to take payment" turns it into a proper invoice. This removed the last direct table write in the apps, so `post_merge_hardening.sql` is safe to run.
 - **Hotfix shipped after the upgrade:** the old Order History and Invoice pages broke after `upgrade_v2.sql` because bookings gained a second link to staff (assigned staffer). Fixed in PR #11 by naming the link explicitly.
 
 ## What I'd do next
