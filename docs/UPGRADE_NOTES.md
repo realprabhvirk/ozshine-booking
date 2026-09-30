@@ -79,6 +79,12 @@ Living document for the `feature/v2-shop-os` branch. Updated as each phase lands
   - **SEO:** page titles and descriptions, schema.org "AutoWash" data (hours, phone, address), a sitemap and robots.txt. Personal pages (booking links, receipts, accounts) are never indexed.
   - Maps use an OpenStreetMap link (no Google APIs).
   - The **demo banner** at the top is controlled by Settings → Business in the staff app.
+- **Shop TV and feedback (Phase 9).**
+  - **Shop TV:** a full-screen board for the waiting-area TV, showing cars being washed (with a progress bar and "ready around"), cars ready to collect, who's coming up, and rolling messages the owner writes.
+    - It opens from a secret link (Settings → Shop TV) and needs no login. It only ever shows first names and the first 3 characters of a rego.
+    - It refreshes every 15 seconds and reloads itself twice a day. A new link can be made at any time, which kills the old one.
+  - **Feedback & reviews** (Messages tab): every rating customers leave. Ratings of 3 stars or less sit in "To follow up" until someone marks them sorted, with one-tap call and message buttons.
+  - Good ratings with a comment can be put on the website (first name + last initial). The website's reviews section only shows what's switched on here.
 - **Demo data is fully removable.** Every demo row is flagged; demo invoices are numbered `DEMO-…` so they don't use up real invoice numbers.
 
 ## Env vars (all optional)

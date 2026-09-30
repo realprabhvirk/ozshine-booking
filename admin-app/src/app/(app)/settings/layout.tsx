@@ -7,6 +7,7 @@ const TABS = [
   { href: "/settings/extras", label: "Extras & bays" },
   { href: "/settings/closures", label: "Closures" },
   { href: "/settings/rewards", label: "Promos & loyalty" },
+  { href: "/settings/tv", label: "Shop TV" },
   { href: "/settings/audit", label: "Audit log" },
 ];
 
