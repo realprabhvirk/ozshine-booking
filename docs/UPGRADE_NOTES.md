@@ -58,11 +58,27 @@ Living document for the `feature/v2-shop-os` branch. Updated as each phase lands
   - **Gift vouchers** are issued here after the customer has paid for them (e.g. as a custom invoice line). They're redeemed at checkout as a payment method and the balance goes down.
   - **Alert sound** for new online requests: chime, bell or off, with a volume slider and a Test button (Settings → Business).
   - On phones, History, Reports and Settings sit under a "More" tab in the bottom bar (along with log out and theme).
+- **Messages (Phase 7).**
+  - One place for every text and email: **Sent messages** (search, filter, see exactly what went out, retry failures), **Campaigns** (pick a group, see the live head-count, send), **Automatic messages** (switch each one on or off, adjust timings), **Wording** (edit any template with a live preview and SMS-length counter) and **Setup**.
+  - A one-off "Send a message" button sits on each customer's Messages tab.
+  - Demo mode is the default and stays on until the owner signs off on a provider.
+  - Campaigns only reach customers who've opted in to marketing and always carry an opt-out line. People who opted out show up as "skipped" rather than disappearing.
+  - The daily job runs through a key the database checks (only its bcrypt hash is stored), so the Supabase service-role key is never used.
+  - Messages are claimed in batches and handed to Twilio/Resend. Each result (sent or failed, with the provider's error) is written back.
+  - Campaigns send immediately. Scheduling for later is not built yet.
 - **Demo data is fully removable.** Every demo row is flagged; demo invoices are numbered `DEMO-…` so they don't use up real invoice numbers.
 
 ## Env vars (all optional)
 
-Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are required (already set in Vercel). Anything added later for real SMS/email sending will be optional and off by default. This section gets filled in with Phase 7.
+Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are required (already set in Vercel). Everything below is optional, belongs in the **staff app** Vercel project only, and is documented in `admin-app/.env.local.example`. The Supabase service-role key is never needed.
+
+| Variable | What it does | If it's missing |
+|---|---|---|
+| `CRON_SECRET` | Lets the daily 7am job run. Must match the key made in Messages → Setup. | Reminders and feedback requests are still checked hourly while the staff app is open. |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` | Real SMS | SMS stays simulated. |
+| `RESEND_API_KEY`, `RESEND_FROM` | Real email | Email stays simulated. |
+
+Real sending also needs **Messages → Setup → Switch to live sending**. That button stays greyed out until a provider is configured.
 
 ## Known limitations
 
