@@ -3,69 +3,37 @@
 import Image from "next/image";
 import logo from "@/assets/oz-shine-logo.png";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { issueInvoice } from "@/lib/shop/actions";
+import { errorMessage } from "@/lib/core/errors";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateFull, formatMoney, formatTime } from "@/lib/format";
 import type { BookingWithInvoiceDetails } from "@/lib/supabase/types";
 
+// Read-only view of a job finished before the V2 upgrade (it has no V2
+// invoice). Money changes happen on a real invoice: "Create invoice" turns the
+// job into one, which keeps the audit trail and works after hardening.
 export function InvoiceView({
-  booking: initialBooking,
+  booking,
 }: {
   booking: BookingWithInvoiceDetails;
 }) {
   const [supabase] = useState(() => createClient());
-  const [booking, setBooking] = useState(initialBooking);
-  const [amountInput, setAmountInput] = useState(
-    String(booking.amount_charged ?? "")
-  );
-  const [editingAmount, setEditingAmount] = useState(false);
+  const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function saveAmount() {
-    const parsed = Number(amountInput);
-    if (!amountInput || Number.isNaN(parsed) || parsed < 0) {
-      alert("Enter a valid amount.");
-      return;
-    }
-
+  async function createInvoice() {
     setSaving(true);
-    const { error } = await supabase
-      .from("bookings")
-      .update({ amount_charged: parsed })
-      .eq("id", booking.id);
-    setSaving(false);
-
-    if (error) {
-      alert(`Couldn't update the amount: ${error.message}`);
-      return;
+    setError(null);
+    try {
+      const id = await issueInvoice(supabase, booking.id);
+      router.push(`/invoices/${id}`);
+    } catch (e) {
+      setError(errorMessage(e));
+      setSaving(false);
     }
-
-    setBooking((prev) => ({ ...prev, amount_charged: parsed }));
-    setEditingAmount(false);
-  }
-
-  async function togglePaid() {
-    const nextPaid = !booking.paid;
-    setSaving(true);
-    const { error } = await supabase
-      .from("bookings")
-      .update({
-        paid: nextPaid,
-        paid_at: nextPaid ? new Date().toISOString() : null,
-      })
-      .eq("id", booking.id);
-    setSaving(false);
-
-    if (error) {
-      alert(`Couldn't update paid status: ${error.message}`);
-      return;
-    }
-
-    setBooking((prev) => ({
-      ...prev,
-      paid: nextPaid,
-      paid_at: nextPaid ? new Date().toISOString() : null,
-    }));
   }
 
   return (
@@ -137,33 +105,7 @@ export function InvoiceView({
                   {formatTime(booking.requested_time)}
                 </td>
                 <td className="px-4 py-4 text-right font-semibold">
-                  {editingAmount ? (
-                    <span className="inline-flex items-center gap-2 print:hidden">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        autoFocus
-                        value={amountInput}
-                        onChange={(e) => setAmountInput(e.target.value)}
-                        className="w-24 rounded-lg border border-border px-2 py-1 text-right outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-                      />
-                      <button
-                        onClick={saveAmount}
-                        disabled={saving}
-                        className="rounded-lg bg-brand px-3 py-1 text-xs font-semibold text-white hover:bg-brand-dark disabled:opacity-50"
-                      >
-                        Save
-                      </button>
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => setEditingAmount(true)}
-                      className="underline decoration-dotted underline-offset-4 print:no-underline"
-                    >
-                      {formatMoney(booking.amount_charged)}
-                    </button>
-                  )}
+                  {formatMoney(booking.amount_charged)}
                 </td>
               </tr>
             </tbody>
@@ -197,14 +139,17 @@ export function InvoiceView({
           >
             {booking.paid ? "Paid" : "Unpaid"}
           </span>
-          <button
-            onClick={togglePaid}
-            disabled={saving}
-            className="rounded-lg border border-border px-5 py-2.5 text-sm font-semibold text-foreground transition hover:bg-black/[0.03] disabled:opacity-50 print:hidden"
-          >
-            Mark as {booking.paid ? "Unpaid" : "Paid"}
-          </button>
+          {!booking.paid && booking.status === "completed" && (
+            <button
+              onClick={createInvoice}
+              disabled={saving}
+              className="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:opacity-50 print:hidden"
+            >
+              {saving ? "Creating…" : "Create invoice to take payment"}
+            </button>
+          )}
         </div>
+        {error && <p className="mt-3 text-sm text-red-700 print:hidden">{error}</p>}
       </div>
     </div>
   );

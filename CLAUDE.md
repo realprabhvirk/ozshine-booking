@@ -10,83 +10,53 @@ I (Mr Virk) am a freelance web developer, not deeply technical on infra. I work 
 * Write PR descriptions assuming I'm non-technical: what changed, what to actually click/check on the preview URL to verify it, in plain language.
 
 What this product is
-A bespoke booking + business management system for OzShine Hand Car Wash, Beenleigh location only (one of their 3 stores — this build is Beenleigh-scoped, not multi-location). It's a demo to win the shop owner's approval to fully replace their current setup: PickTime (appointment booking) + a separate Odoo-based CRM/POS. One unified system instead of two.
-The core user loop that has to work end to end (first milestone): a customer books a wash on the public site (as a guest, no account needed) → it appears live on the admin dashboard → staff approve it → staff mark it complete and invoice it → it shows up in order history with who processed it. If that loop works cleanly, the product's proven.
+A bespoke booking + business management system ("Shop OS", V2) for OzShine Hand Car Wash, Beenleigh location only (one of their 3 stores — this build is Beenleigh-scoped, not multi-location). It replaces their current setup: PickTime (appointment booking) + a separate Odoo-based CRM/POS. One unified system instead of two.
+The core loop that must always work end to end: a customer books on the public site (guest, no account needed) → it appears live on the staff Floor (chime) → staff approve → arrived → in bay → ready → checkout (invoice + payment) → it shows in History with who processed it.
+
+Current state (V2, all phases merged to `main`)
+The original V1 brief (single-page site, 4 booking statuses, direct table writes) has been superseded by V2. Trust the repo over any older description. Full decision log: `docs/UPGRADE_NOTES.md`; owner handover + go-live checklist: `docs/HANDOVER.md`; click-through tests: `docs/TEST_PLAN.md`; SQL the owner runs: `docs/SUPABASE_STEPS.md`.
+
 Repo structure (monorepo, two independent apps)
 
 ```
 ozshine-booking/
-  customer-app/     <- public booking site, own Next.js project (own package.json etc.)
-  admin-app/        <- staff dashboard, own separate Next.js project
+  customer-app/     <- public booking site (Next.js 16): /, /book, /manage/[token], /r/[token], /account
+  admin-app/        <- staff app (Next.js 16): Floor, Schedule, New sale, Money, Customers, History,
+                       Messages, Reports, Settings, /display/[key] shop TV, /api/cron/messages
   supabase/
-    schema.sql      <- the one script I paste into Supabase's SQL Editor myself
+    upgrade_v2.sql  <- additive, idempotent upgrade the owner pasted into the LIVE project (source of truth)
+    schema.sql      <- generated (supabase/tests: npm run build-schema) — brand-new empty project only
+    post_merge_hardening.sql / rollback_hardening.sql, seed_demo.sql / remove_demo.sql
+    tests/          <- PGlite test suite (91 tests): npm test
+  docs/             <- UPGRADE_NOTES, HANDOVER, TEST_PLAN, SUPABASE_STEPS
   CLAUDE.md         <- this file
-
 ```
 
-Each app is a fully independent Next.js project — don't share a `package.json` or assume a single root config between them. They only share the Supabase backend (same URL/keys, different `.env` files in each app folder).
-Deployment: two separate Vercel projects, both connected to this one GitHub repo, each with its Root Directory set to its own folder (`customer-app` / `admin-app`) in Vercel's project settings. I set this up on my end — you don't need to touch Vercel directly. A push to `main` in either folder rebuilds that app's production deployment; a PR/branch touching either folder gets its own Preview deployment.
-Env vars: never put real Supabase keys in this repo. Each app folder should have a `.env.local.example` (committed, placeholder values only) documenting exactly which vars it needs — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`. The real values live only in each Vercel project's Settings → Environment Variables, set for Production, Preview, AND Development — I'll add those myself once you tell me exactly what to paste and where.
-Database (Supabase — I run the SQL myself via their dashboard, non-technical)
-Write/maintain `supabase/schema.sql` as the single source of truth. Schema:
+Each app is a fully independent Next.js project — don't share a `package.json` or assume a single root config between them. They only share the Supabase backend. `src/lib/core` (phone/rego, money in cents, GST, Brisbane time, statuses, error codes, schemas) is copied into both apps and must stay identical — a test in `supabase/tests` fails if they drift.
+Deployment: two separate Vercel projects, both connected to this one GitHub repo, each with its Root Directory set to its own folder (`customer-app` / `admin-app`). A push to `main` rebuilds production; a PR gets Preview deployments.
+Env vars: never put real Supabase keys in this repo (never the service-role key, anywhere). Required in both apps: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Optional (documented in each `.env.local.example`): customer-app `NEXT_PUBLIC_SITE_URL`; admin-app `CRON_SECRET`, `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`/`TWILIO_FROM`, `RESEND_API_KEY`/`RESEND_FROM`. Any new env var must be optional and documented.
 
-* locations — id, name, address, phone. One seed row: Beenleigh.
-* services — id, location_id, name, price_from, description, sort_order. Seed — full catalog, matching the real ozshinecarwash.com.au service ladder:
-   * OzShine Wash — $40+
-   * Platinum Wash — $65+ (most popular)
-   * OzShine Polish — $120+
-   * Interior Detail — $240+
-   * OzShine Full Detail — $330+ (featured package)
-   * Correction & Coating — $330+
-* customers — id, auth_user_id (nullable — null for guest bookings), name, phone (unique, this is THE matching key), email (nullable), created_at.
-* vehicles — id, customer_id, rego, make/model (nullable text), notes.
-* bookings — id, customer_id, vehicle_id, service_id, location_id, requested_date, requested_time, status (`pending`/`approved`/`declined`/`completed`), amount_charged, paid (boolean), paid_at, processed_by_staff_id (nullable — set when staff approves/completes/ invoices it), created_at.
-* staff — id, auth_user_id, location_id, name, role (`admin`/`staff`).
-
-Matching logic: every booking (guest or not) looks up `customers` by phone first. Existing phone → attach to that customer, history carries over. New phone → create a new customer row. This is how guest bookings still build loyalty history without forcing an account.
-RLS:
-
-* `customers`/`vehicles`/`bookings`: public (anon) can INSERT (this is what makes guest booking work at all). Authenticated customers SELECT/UPDATE only their own rows (via `customers. auth_user_id = auth.uid()`). Staff (checked against the `staff` table) can SELECT/UPDATE everything scoped to their `location_id`.
-* `staff` table: only staff can read it, never public.
-* Supabase Auth email confirmation: I'll disable this in the dashboard (Auth settings) so demo accounts work instantly — flag clearly in any PR touching auth that this must be turned back on before real customers sign up in production.
-
-App 1: `customer-app/`
-Single-page app — one main page component holds the whole UI (hero, services, booking form, account view). Small config/API route files are normal; "single page" means the UI itself, not that the whole project is literally one file.
-
-1. Hero — match the real OzShine site's look (headline, tagline, brand red `#c61b1f`, dark/glossy photography style, clean modern sans-serif). Fetch the live site (ozshinecarwash.com.au) for reference if you need exact styling details.
-2. Services — the full catalog above with pricing, "Book Now" scrolls to the form.
-3. Booking form — name, phone (required — the matching key), email (optional), rego, service, preferred date/time. Guest submit is the default single button. No payment collection. Creates a `pending` booking, shows an on-screen confirmation. No real SMS/email sending for this build.
-4. Optional account creation — small toggle near the form: "Save my details for next time" → email+password via Supabase Auth, no email verification.
-5. Logged-in view — replaces the booking form section: booking history, visit count, and a placeholder loyalty message ("You've visited 4 times — 2 more for 50% off your next wash"). Cosmetic for now, no real automation behind it.
-
-App 2: `admin-app/`
-Staff login via Supabase Auth, matched against the `staff` table (reject if no staff row exists). Tablet-first layout — big touch targets, works well on a 10" screen, landscape.
-
-1. Booking queue — live list of `pending` bookings via Supabase Realtime (instant appearance
-   * short alert sound), Approve/Decline buttons. Approving/declining/completing sets `processed_by_staff_id` to the logged-in staff member.
-2. Today dashboard (home screen) — KPI cards: cars processed today, revenue today. Live query against `bookings`, always reflects the current day — no manual "open/close shift" step needed.
-3. Customer lookup — search by name/phone/rego → full history, total visits, outstanding balance.
-4. Order history — searchable/filterable table of all past bookings/invoices (date range, name, rego), each row links to its invoice for reprinting.
-5. Active/upcoming view — approved bookings for today, simple status.
-6. Invoicing — from a completed booking: service, price, customer, rego, date, which staff member processed it, editable amount, "Mark Paid" toggle, printable invoice view (browser print stylesheet is fine, skip a PDF library unless trivial to add).
+Database rules (Supabase — the owner runs SQL himself via the dashboard, non-technical)
+* The live project holds real data: SQL for it must be additive and idempotent. Never ship `drop table` or anything destructive for the live project. Change `upgrade_v2.sql` (or add a new additive script), regenerate `schema.sql`, keep `supabase/tests` green.
+* Every write goes through a `security definer` Postgres function (bookings, invoices, payments, customers, settings via `admin_save` with a column whitelist). Apps only SELECT tables directly; RLS decides visibility (anon: nothing private; customers: their own rows; staff: their location; admin-only functions check `is_admin()`).
+* Errors: functions raise `oz_raise(CODE, message)`; `lib/core/errors.ts` maps codes to friendly text.
+* Money in integer cents in the apps; GST = total ÷ 11 (prices include GST). Brisbane time everywhere.
+* Customer matching: by phone (normalised `04xxxxxxxx`), done server-side in `create_public_booking`.
+* Solo mode: the shop runs on ONE owner login (admin). While there's a single active staff login, everything is attributed to it and there is no PIN UI; PINs switch on automatically if more staff are added.
+* Supabase Auth email confirmation is OFF for the demo — flag clearly in any PR touching auth that it must be turned back on before real customers sign up.
 
 Explicitly out of scope — don't build these, don't suggest them unprompted
-
-* Real payment processing / EFTPOS integration (EFTPOS stays a separate physical system — the app only ever records paid/unpaid).
-* Real SMS/email sending (Twilio, Resend, etc.).
-* Actually triggering loyalty promos — only the visible counter/message.
+* Real payment processing / EFTPOS integration (EFTPOS stays a separate physical system — the app only records payments).
+* Real SMS/email sending turned on without the owner's sign-off. The Twilio/Resend adapters exist but stay off (demo mode = "simulated_sent") until provider keys are added AND Messages → Setup is switched to Live.
+* Fabricated social proof (fake reviews, fake counters). Reviews only come from real customers via the feedback inbox.
 * Karalee and Browns Plains locations — Beenleigh only.
 * Three-tier roles (Super Admin/Admin/Staff) — keep it to `admin`/`staff`.
+* Google APIs (maps etc.). `next/font/google` for fonts is fine.
 
 Design direction
-Needs to look and feel like a real, professional product — not a generic AI-template layout, not default shadcn-out-of-the-box styling with no customization. Match OzShine's actual brand (red `#c61b1f`, dark glossy photography, clean sans-serif) closely enough that someone glancing at `customer-app` would assume it's the real site. The admin app can look more utilitarian/ functional (it's a work tool, not a marketing page) but should still feel deliberately designed, not thrown together.
-Build order / phases
-Each phase needs a PR, and each phase is "done" when the stated test passes — not just when the code exists.
+Needs to look and feel like a real, professional product — not a generic AI-template layout, not default shadcn-out-of-the-box styling with no customization. The booking site matches OzShine's brand (red `#c61b1f`, dark glossy sections, clean sans-serif). The staff app is a dark/light "ops console", tablet-first (10" landscape, big touch targets). Each app has its own design system in `src/components/ui` (reference pages: staff `/ui`, public `/styleguide`) — use those building blocks and the token classes (`bg-panel`, `text-fg-muted`, `bg-accent`…) rather than raw colours.
 
-1. Schema + Supabase RLS — done when I can manually insert a test booking via the SQL editor and confirm RLS blocks an anon read of another customer's row.
-2. Admin app: booking queue + customer creation — done when staff can log in and manually create a booking + customer from the admin UI (before the public site exists — this is what I'll demo internally first).
-3. Customer app: booking flow — done when a guest booking submitted on the public site appears live in the admin queue without a page refresh.
-4. Invoicing + order history — done when a completed booking can be marked paid and its invoice reprinted from the order history table.
-5. Loyalty display (cosmetic) — done when a logged-in customer sees an accurate visit count.
+Before a PR
+Run `npm run typecheck`, `npm run lint`, `npm test` and `npm run build` in every app folder you touched (build with placeholder env: `NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder`). If SQL changed, run `supabase/tests` (`npm test`). Keep `docs/UPGRADE_NOTES.md` updated with any assumption or decision.
 
 Confirm you've read this file and actually inspected the current repo state (not just this brief) before writing any code. If repo state and this file disagree, tell me which you're trusting and why.
