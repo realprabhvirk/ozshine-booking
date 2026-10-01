@@ -51,6 +51,7 @@ Use two browser tabs side by side: the **booking site** and the **staff app** (l
 1. **Messages → Sent messages:** confirmations, reminders and receipts from the tests above are listed as "Sent (demo)".
 2. **Wording:** edit a template and check the preview. **Automatic messages → Check now.**
 3. **Campaigns → New campaign:** the audience count updates as filters change. Send one (demo).
+4. **Live email (after `instructions/README.md` → "Turning on real emails"):** book on the booking site with your own email. ✅ The confirmation email arrives within a few seconds from beenleigh@ozshinecarwash.com.au, and Sent messages shows it as **Sent** (the matching text shows "Sent (demo)" until SMS is set up). Approve it in the staff app. ✅ The "confirmed" email arrives once, not twice.
 
 ### 8. Feedback, reviews, TV
 1. Open a completed booking's customer page and rate it **2 stars** with a comment. ✅ It's under **Messages → Feedback & reviews → To follow up**. Mark it **Sorted**.
@@ -72,8 +73,8 @@ Use two browser tabs side by side: the **booking site** and the **staff app** (l
 
 | What | Where | Count |
 |---|---|---|
-| Database: upgrade of a copy of the live V1 database (run twice), fresh-install parity, every server function, a permissions matrix (public / customer / staff / admin / deactivated staff), hardening + rollback | `supabase/tests` (`npm test`) | 94 |
-| Staff app helpers: money/GST, phone/rego, dates, CSV import/export safety, ABN, QLD holidays, message length/encoding, templates | `admin-app` (`npm test`) | 18 |
+| Database: upgrade of a copy of the live V1 database (run twice), fresh-install parity, every server function, a permissions matrix (public / customer / staff / admin / deactivated staff), hardening + rollback, live-sending lease, and a contract check of every table/column/RPC the two apps use | `supabase/tests` (`npm test`) | 89 |
+| Staff app helpers: money/GST, phone/rego, dates, CSV import/export safety, ABN, QLD holidays, message length/encoding, templates, paging past the 1,000-row cap, live email sending | `admin-app` (`npm test`) | 26 |
 | Booking site helpers | `customer-app` (`npm test`) | 7 |
 | Typecheck, lint, production build | both apps | ✔ |
 
