@@ -83,7 +83,7 @@ export function InvoicesClient({ from, to, initial }: { from: string; to: string
         <Stat label="Invoices" value={live_.length} sub={`${formatDate(from, "medium")} – ${formatDate(to, "medium")}`} />
         <Stat label="Invoiced" value={formatCents(total)} sub="Incl. GST, excl. voids" />
         <Stat label="Still owing" value={formatCents(owing)} sub={`${live_.filter((r) => toCents(r.balance_due) > 0).length} invoices`} />
-        <Stat label="Average invoice" value={live_.length ? formatCents(Math.round(total / live_.length)) : "—"} sub={live === "live" ? "Updates live" : "Reconnecting…"} />
+        <Stat label="Average invoice" value={live_.length ? formatCents(Math.round(total / live_.length)) : "—"} sub={live === "live" ? "Updates live" : "Updates every 15s"} />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
