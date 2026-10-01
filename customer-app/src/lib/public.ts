@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { toCents, type Cents } from "@/lib/core/money";
 import type { BookingStatus, VehicleType } from "@/lib/core/status";
 import { callRpc } from "@/lib/rpc";
+import { publicRpc } from "@/lib/public-rpc";
 import { kickOutbox } from "@/lib/site";
 
 export type DayHours = { open: string; close: string; closed: boolean };
@@ -171,15 +172,15 @@ export type BookingCreated = {
 };
 
 export function fetchSlots(supabase: SupabaseClient, date: string, serviceId: string, addonIds: string[]) {
-  return callRpc<Slot[]>(supabase, "get_available_slots", { p_date: date, p_service_id: serviceId, p_addon_ids: addonIds });
+  return publicRpc<Slot[]>(supabase, "get_available_slots", { p_date: date, p_service_id: serviceId, p_addon_ids: addonIds }, { retry: true });
 }
 
 export function checkPromo(supabase: SupabaseClient, code: string, serviceId: string, subtotalCents: Cents) {
-  return callRpc<{ ok: boolean; message: string; code?: string; discount?: Money }>(supabase, "validate_promo", {
+  return publicRpc<{ ok: boolean; message: string; code?: string; discount?: Money }>(supabase, "validate_promo", {
     p_code: code,
     p_service_id: serviceId,
     p_subtotal: subtotalCents / 100,
-  });
+  }, { retry: true });
 }
 
 // These can queue a text/email to the customer: ask for it to go out now.
@@ -189,7 +190,7 @@ function sendNow<T>(r: T): T {
 }
 
 export function createBooking(supabase: SupabaseClient, payload: BookingPayload) {
-  return callRpc<BookingCreated>(supabase, "create_public_booking", { payload }).then(sendNow);
+  return publicRpc<BookingCreated>(supabase, "create_public_booking", { payload }).then(sendNow);
 }
 
 export function getBookingByToken(supabase: SupabaseClient, token: string) {
@@ -197,15 +198,15 @@ export function getBookingByToken(supabase: SupabaseClient, token: string) {
 }
 
 export function cancelByToken(supabase: SupabaseClient, token: string, reason: string) {
-  return callRpc<BookingView>(supabase, "cancel_booking_by_token", { p_token: token, p_reason: reason || null }).then(sendNow);
+  return publicRpc<BookingView>(supabase, "cancel_booking_by_token", { p_token: token, p_reason: reason || null }).then(sendNow);
 }
 
 export function rescheduleByToken(supabase: SupabaseClient, token: string, date: string, time: string) {
-  return callRpc<BookingView>(supabase, "reschedule_booking_by_token", { p_token: token, p_new_date: date, p_new_time: time }).then(sendNow);
+  return publicRpc<BookingView>(supabase, "reschedule_booking_by_token", { p_token: token, p_new_date: date, p_new_time: time }).then(sendNow);
 }
 
 export function submitFeedback(supabase: SupabaseClient, token: string, rating: number, comment: string) {
-  return callRpc<{ ok: boolean; low_rating: boolean; review_url: string | null; shop_phone: string | null }>(supabase, "submit_feedback_by_token", {
+  return publicRpc<{ ok: boolean; low_rating: boolean; review_url: string | null; shop_phone: string | null }>(supabase, "submit_feedback_by_token", {
     p_token: token,
     p_rating: rating,
     p_comment: comment || null,
@@ -213,7 +214,7 @@ export function submitFeedback(supabase: SupabaseClient, token: string, rating: 
 }
 
 export function joinWaitlist(supabase: SupabaseClient, name: string, phone: string, date: string, serviceId: string | null, note: string) {
-  return callRpc<{ ok: boolean }>(supabase, "join_waitlist", { p_name: name, p_phone: phone, p_date: date, p_service_id: serviceId, p_note: note || null });
+  return publicRpc<{ ok: boolean }>(supabase, "join_waitlist", { p_name: name, p_phone: phone, p_date: date, p_service_id: serviceId, p_note: note || null });
 }
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
