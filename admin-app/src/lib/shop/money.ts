@@ -30,6 +30,9 @@ export type Payment = {
   received_at: string;
   refund_of_payment_id: string | null;
   received_by: { name: string } | null;
+  // Cash only: what was handed over and the change given (null otherwise).
+  tendered?: number | string | null;
+  change_given?: number | string | null;
 };
 
 export type InvoiceDetail = {
@@ -70,7 +73,7 @@ export const INVOICE_DETAIL_SELECT = [
   "id, number, status, subtotal, discount_total, gst_amount, total, amount_paid, balance_due, public_token",
   "issued_at, voided_at, void_reason, notes, created_at",
   "items:invoice_items(id, kind, description, quantity, unit_price, line_total, sort, created_at)",
-  "payments(id, amount, method, reference, note, received_at, refund_of_payment_id, received_by:staff!received_by_staff_id(name))",
+  "payments(id, amount, method, reference, note, received_at, refund_of_payment_id, tendered, change_given, received_by:staff!received_by_staff_id(name))",
   "customer:customers(id, name, phone, email, is_walkin_placeholder)",
   "created_by:staff!created_by_staff_id(name)",
   "booking:bookings(id, reference_code, status, requested_date, requested_time, completed_at, vehicle_type, service:services(name), vehicle:vehicles(rego, make_model, colour), processed_by:staff!processed_by_staff_id(name))",
@@ -87,7 +90,13 @@ export function sortItems(items: InvoiceItem[]): InvoiceItem[] {
 }
 
 export async function fetchInvoice(supabase: SupabaseClient, id: string): Promise<InvoiceDetail | null> {
-  const row = check(await supabase.from("invoices").select(INVOICE_DETAIL_SELECT).eq("id", id).maybeSingle());
+  let res = await supabase.from("invoices").select(INVOICE_DETAIL_SELECT).eq("id", id).maybeSingle();
+  // Before supabase/patch_cash_change.sql is run the cash columns don't exist
+  // (Postgres 42703): load the invoice without them rather than failing.
+  if (res.error && (res.error as { code?: string }).code === "42703") {
+    res = await supabase.from("invoices").select(INVOICE_DETAIL_SELECT.replace(" tendered, change_given,", "")).eq("id", id).maybeSingle();
+  }
+  const row = check(res);
   if (!row) return null;
   const inv = row as unknown as InvoiceDetail;
   inv.items = sortItems(inv.items);

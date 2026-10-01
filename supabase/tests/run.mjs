@@ -87,18 +87,18 @@ async function seedV1Data(db) {
     insert into vehicles (customer_id, rego, vehicle_type)
       select id, 'xyz-789', 'van' from customers where name = 'Sam Legacy';
     insert into bookings (customer_id, vehicle_id, service_id, location_id, requested_date, requested_time, status, amount_charged, paid, paid_at)
-      select c.id, v.id, s.id, s.location_id, current_date - 3, '10:00', 'completed', 65, true, now() - interval '3 days'
+      select c.id, v.id, s.id, s.location_id, (now() at time zone 'Australia/Brisbane')::date - 3, '10:00', 'completed', 65, true, now() - interval '3 days'
       from customers c join vehicles v on v.customer_id = c.id, services s
       where c.name = 'Jess Legacy' and s.name = 'Platinum Wash';
     insert into bookings (customer_id, vehicle_id, service_id, location_id, requested_date, requested_time, status, amount_charged, paid)
-      select c.id, v.id, s.id, s.location_id, current_date - 2, '11:00', 'completed', 60, false
+      select c.id, v.id, s.id, s.location_id, (now() at time zone 'Australia/Brisbane')::date - 2, '11:00', 'completed', 60, false
       from customers c join vehicles v on v.customer_id = c.id, services s
       where c.name = 'Sam Legacy' and s.name = 'OzShine Wash';
     insert into bookings (customer_id, service_id, location_id, requested_date, requested_time, status)
-      select c.id, s.id, s.location_id, current_date + 5, '09:00', 'pending'
+      select c.id, s.id, s.location_id, (now() at time zone 'Australia/Brisbane')::date + 5, '09:00', 'pending'
       from customers c, services s where c.name = 'Pat Legacy' and s.name = 'OzShine Wash';
     insert into bookings (customer_id, service_id, location_id, requested_date, requested_time, status)
-      select c.id, s.id, s.location_id, current_date + 6, '14:00', 'approved'
+      select c.id, s.id, s.location_id, (now() at time zone 'Australia/Brisbane')::date + 6, '14:00', 'approved'
       from customers c, services s where c.name = 'Pat Legacy' and s.name = 'Interior Detail';
   `);
 }
@@ -510,6 +510,20 @@ await test("vouchers: pay by voucher, balance tracked, overdraw refused", async 
   await staffCall(U.staff, `select record_payment($1, 30, 'voucher', null, $2, 'GIFT50')`, [inv, crewTok]);
   eq(Number((await db.query(`select balance from vouchers where code = 'GIFT50'`)).rows[0].balance), 20);
   await expectError(staffCall(U.staff, `select record_payment($1, 30, 'voucher', null, $2, 'GIFT50')`, [inv, crewTok]), "VOUCHER_BALANCE");
+});
+await test("cash payments record what was handed over and the change", async () => {
+  const w = await staffCall(U.staff, `select create_walkin_order($1::jsonb, $2)`, [JSON.stringify({ vehicle_type: "sedan", service_id: ids.wash, name: "Cash Carl" }), crewTok]);
+  const inv = await staffCall(U.staff, `select issue_invoice($1, $2)`, [w.booking_id, crewTok]);
+  const p = await staffCall(U.staff, `select record_payment($1, 40, 'cash', null, $2)`, [inv, crewTok]);
+  const t = await staffCall(U.staff, `select set_payment_tendered($1, 50, $2)`, [p.payment_id, crewTok]);
+  eq(Number(t.change_given), 10);
+  const row = (await db.query(`select tendered, change_given from payments where id = $1`, [p.payment_id])).rows[0];
+  eq([Number(row.tendered), Number(row.change_given)], [50, 10]);
+  await expectError(staffCall(U.staff, `select set_payment_tendered($1, 20, $2)`, [p.payment_id, crewTok]), "INVALID_INPUT");
+  const tok = (await db.query(`select public_token from invoices where id = $1`, [inv])).rows[0].public_token;
+  const r = await as(db, "anon", null, async () => (await db.query(`select get_receipt_by_token($1) r`, [tok])).rows[0].r);
+  eq(Number(r.payments[0].change_given), 10, "change on public receipt");
+  await expectError(as(db, "anon", null, () => db.query(`select set_payment_tendered($1, 60, null)`, [p.payment_id])), /permission denied/);
 });
 await test("walk-in with no details uses the shared Walk-in Guest and starts in a bay", async () => {
   const w = await staffCall(U.staff, `select create_walkin_order($1::jsonb, $2)`, [JSON.stringify({ vehicle_type: "sedan", service_id: ids.wash, start_now: true }), crewTok]);

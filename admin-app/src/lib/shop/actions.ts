@@ -101,7 +101,7 @@ export function recordPayment(
   method: PaymentMethod,
   opts: { reference?: string | null; voucherCode?: string | null; idempotencyKey?: string } = {},
 ) {
-  return run(callRpc<{ status: string; balance_due: number }>(supabase, "record_payment", {
+  return run(callRpc<{ payment_id: string; status: string; balance_due: number }>(supabase, "record_payment", {
     p_invoice_id: invoiceId,
     p_amount: centsToDbAmount(amount),
     p_method: method,
@@ -110,4 +110,16 @@ export function recordPayment(
     p_voucher_code: opts.voucherCode ?? null,
     p_idempotency_key: opts.idempotencyKey ?? null,
   }));
+}
+
+// Cash: save what was handed over so the receipt shows the change. Never
+// blocks a payment: if it fails (e.g. the patch isn't run yet) the payment
+// itself is already recorded.
+export async function setPaymentTendered(supabase: SupabaseClient, paymentId: string, tendered: Cents) {
+  try {
+    await callRpc(supabase, "set_payment_tendered", { p_payment_id: paymentId, p_tendered: centsToDbAmount(tendered), p_actor: ACTOR });
+    return true;
+  } catch {
+    return false;
+  }
 }

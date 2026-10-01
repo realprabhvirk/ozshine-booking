@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { useShop } from "@/components/shop-context";
 import { useToast } from "@/components/ui/toast";
-import { advanceBooking } from "@/lib/shop/actions";
+import { advanceBooking, updateBookingDetails } from "@/lib/shop/actions";
 import type { BoardBooking } from "@/lib/shop/types";
 import { BOOKING_STATUS_META, type BookingStatus } from "@/lib/core/status";
 import { ReasonDialog } from "./reason-dialog";
@@ -11,10 +11,11 @@ import { BayDialog } from "./bay-dialog";
 import { CheckoutDialog } from "./checkout-dialog";
 import { RescheduleDialog } from "./reschedule-dialog";
 
-type Kind = "decline" | "cancel" | "no_show" | "bay" | "checkout" | "reschedule";
+type Kind = "decline" | "cancel" | "no_show" | "bay" | "move_bay" | "checkout" | "reschedule";
 
 type Api = {
-  // One-tap moves: approve, check in, start (first free bay), ready.
+  // One-tap moves: approve, check in, ready. "Start" always asks which bay
+  // (unless the shop only has one).
   advance: (b: BoardBooking, to: BookingStatus) => Promise<void>;
   openDialog: (kind: Kind, b: BoardBooking) => void;
   isBusy: (id: string) => boolean;
@@ -86,13 +87,32 @@ export function BookingActionsProvider({ children }: { children: ReactNode }) {
     close();
   }
 
+  async function moveBay(bayId: string) {
+    if (!dialog) return;
+    setDialogBusy(true);
+    try {
+      await updateBookingDetails(supabase, dialog.booking.id, { bay_id: bayId });
+      toast.success("Moved", bays.find((x) => x.id === bayId)?.name);
+    } catch (e) {
+      toast.error(e, "Couldn't change the bay");
+    }
+    close();
+  }
+
+  const activeBays = bays.filter((x) => x.active).length;
   const api = useMemo<Api>(
     () => ({
-      advance: (b, to) => advance(b, to),
+      advance: async (b, to) => {
+        if (to === "in_progress" && activeBays > 1) {
+          setDialog({ kind: "bay", booking: b });
+          return;
+        }
+        await advance(b, to);
+      },
       openDialog: (kind, booking) => setDialog({ kind, booking }),
       isBusy: (id) => busy.has(id),
     }),
-    [advance, busy],
+    [advance, busy, activeBays],
   );
 
   const b = dialog?.booking ?? null;
@@ -141,6 +161,15 @@ export function BookingActionsProvider({ children }: { children: ReactNode }) {
         title={b ? `Start ${b.vehicle?.rego ?? b.reference_code} in…` : "Which bay?"}
         onPick={(bayId) => withDialog("in_progress", { bayId })}
       />
+      <BayDialog
+        key={`move-${key}`}
+        open={dialog?.kind === "move_bay"}
+        onClose={close}
+        busy={dialogBusy}
+        currentBayId={b?.bay?.id ?? null}
+        title={b ? `Move ${b.vehicle?.rego ?? b.reference_code} to…` : "Which bay?"}
+        onPick={(bayId) => (bayId === b?.bay?.id ? close() : moveBay(bayId))}
+      />
       <CheckoutDialog key={`checkout-${key}`} booking={dialog?.kind === "checkout" ? b : null} open={dialog?.kind === "checkout"} onClose={close} />
       <RescheduleDialog key={`resched-${key}`} booking={dialog?.kind === "reschedule" ? b : null} open={dialog?.kind === "reschedule"} onClose={close} />
     </Ctx.Provider>
@@ -161,7 +190,7 @@ export function primaryAction(status: BookingStatus): { to: BookingStatus | "che
     case "approved":
       return { to: "checked_in", label: "Check in" };
     case "checked_in":
-      return { to: "in_progress", label: "Start" };
+      return { to: "in_progress", label: "Start in a bay" };
     case "in_progress":
       return { to: "ready", label: "Mark ready" };
     case "ready":

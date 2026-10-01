@@ -90,6 +90,11 @@ Decision log for the V2 build (all 10 phases merged to `main`). Owner handover: 
   - "Book" buttons on a customer's profile open New sale with them already picked.
   - A missing mobile/email is filled in from what's typed, but a mobile that belongs to another customer is never moved.
   - This needs `supabase/patch_customer_pick.sql` (also folded into `upgrade_v2.sql`). Until it's run, bookings fall back to matching by mobile/rego as before.
+- **Checkout & bays (post-launch fixes).**
+  - **Start in a bay** always asks which bay (it only auto-picks if the shop has one bay). Cars already in a bay can be moved with **Change bay**.
+  - **Adjust price** at checkout adds an extra charge or a discount with a note, which shows on the invoice and in the audit log. Adjustments can be removed until a payment is taken.
+  - **Cash handed over** is saved with cash payments, so receipts show "Cash received" and "Change". This needs `supabase/patch_cash_change.sql`.
+  - **Split payment** takes one bill across several methods (card, cash, bank transfer, other) in one go. Each part is recorded separately and safely: a retry never double-charges a part that already went through.
 - **Demo data is fully removable.** Every demo row is flagged; demo invoices are numbered `DEMO-…` so they don't use up real invoice numbers.
 
 ## Env vars (all optional)

@@ -102,11 +102,19 @@ export default async function ReceiptPage({ params }: PageProps<"/r/[token]">) {
           {r.payments.length > 0 && (
             <ul className="mt-6 space-y-1 border-t border-[#e4e4e8] pt-4 text-sm text-[#555a63]">
               {r.payments.map((p, i) => (
-                <li key={i} className="flex justify-between">
-                  <span>
-                    {toCents(p.amount) < 0 ? "Refund" : PAYMENT_METHOD_LABELS[p.method as PaymentMethod] ?? p.method} · {formatDateTime(p.received_at)}
-                  </span>
-                  <span className="tabular-nums">{formatCents(toCents(p.amount))}</span>
+                <li key={i}>
+                  <div className="flex justify-between">
+                    <span>
+                      {toCents(p.amount) < 0 ? "Refund" : PAYMENT_METHOD_LABELS[p.method as PaymentMethod] ?? p.method} · {formatDateTime(p.received_at)}
+                    </span>
+                    <span className="tabular-nums">{formatCents(toCents(p.amount))}</span>
+                  </div>
+                  {p.tendered != null && p.change_given != null && (
+                    <div className="flex justify-between pl-3">
+                      <span>Cash received {formatCents(toCents(p.tendered))}</span>
+                      <span className="tabular-nums">Change {formatCents(toCents(p.change_given))}</span>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

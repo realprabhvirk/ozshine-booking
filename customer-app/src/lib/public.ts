@@ -94,7 +94,7 @@ export type Receipt = {
   customer_first_name: string | null;
   rego: string | null;
   items: Array<{ description: string; quantity: Money; unit_price: Money; line_total: Money }>;
-  payments: Array<{ method: string; amount: Money; received_at: string }>;
+  payments: Array<{ method: string; amount: Money; received_at: string; tendered?: Money | null; change_given?: Money | null }>;
   business: { name: string; abn: string | null; address: string | null; phone: string | null; email: string | null; footer: string | null; tax_rate: Money };
 };
 

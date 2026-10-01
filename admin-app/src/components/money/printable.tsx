@@ -114,11 +114,18 @@ export function A4Invoice({ inv, s }: { inv: InvoiceDetail; s: ShopSettings | nu
         <Row label="Total (incl. GST)" value={formatCents(toCents(inv.total))} bold />
         <Row label="GST included" value={formatCents(toCents(inv.gst_amount))} />
         {inv.payments.map((p) => (
-          <Row
-            key={p.id}
-            label={`${toCents(p.amount) < 0 ? "Refund" : "Paid"} ${PAYMENT_METHOD_LABELS[p.method]} ${formatDate(shopDateOf(p.received_at), "medium")}`}
-            value={formatCents(toCents(p.amount))}
-          />
+          <div key={p.id}>
+            <Row
+              label={`${toCents(p.amount) < 0 ? "Refund" : "Paid"} ${PAYMENT_METHOD_LABELS[p.method]} ${formatDate(shopDateOf(p.received_at), "medium")}`}
+              value={formatCents(toCents(p.amount))}
+            />
+            {p.tendered != null && p.change_given != null && (
+              <>
+                <Row label="Cash received" value={formatCents(toCents(p.tendered))} />
+                <Row label="Change given" value={formatCents(toCents(p.change_given))} />
+              </>
+            )}
+          </div>
         ))}
         <div className="border-t-2 border-black pt-1">
           <Row label="Balance due" value={formatCents(balance)} bold />
@@ -189,10 +196,24 @@ export function ReceiptSlip({ inv, s }: { inv: InvoiceDetail; s: ShopSettings | 
         <span>{formatCents(toCents(inv.gst_amount))}</span>
       </p>
       {inv.payments.map((p) => (
-        <p key={p.id} className="flex justify-between">
-          <span>{toCents(p.amount) < 0 ? "Refund" : PAYMENT_METHOD_LABELS[p.method]}</span>
-          <span>{formatCents(toCents(p.amount))}</span>
-        </p>
+        <div key={p.id}>
+          <p className="flex justify-between">
+            <span>{toCents(p.amount) < 0 ? "Refund" : PAYMENT_METHOD_LABELS[p.method]}</span>
+            <span>{formatCents(toCents(p.amount))}</span>
+          </p>
+          {p.tendered != null && p.change_given != null && (
+            <>
+              <p className="flex justify-between pl-3">
+                <span>Cash received</span>
+                <span>{formatCents(toCents(p.tendered))}</span>
+              </p>
+              <p className="flex justify-between pl-3 font-bold">
+                <span>CHANGE</span>
+                <span>{formatCents(toCents(p.change_given))}</span>
+              </p>
+            </>
+          )}
+        </div>
       ))}
       <p className="flex justify-between font-bold">
         <span>{balance > 0 ? "OWING" : "BALANCE"}</span>

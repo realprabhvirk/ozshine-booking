@@ -11,6 +11,7 @@ How to copy a SQL file: open it on GitHub → click **Copy raw file** (the two-s
 | 1. Upgrade the database to V2 | `supabase/upgrade_v2.sql` | ✅ Done (you ran it after Phase 1) |
 | 2. Lock down old direct-write permissions | `supabase/post_merge_hardening.sql` | ✅ Done |
 | 2b. Pick existing customers on New sale | `supabase/patch_customer_pick.sql` | ⏳ **Run this now** |
+| 2c. Cash handed over + change on receipts | `supabase/patch_cash_change.sql` | ⏳ **Run this now** |
 | 3. Turn email confirmation back on | Authentication settings | ⏳ Before real customers sign up |
 | 4. Allow the password-reset link | Authentication → URL Configuration | ⏳ Recommended |
 | Demo data (optional) | `seed_demo.sql` / `remove_demo.sql` | Your call |
@@ -28,6 +29,12 @@ How to copy a SQL file: open it on GitHub → click **Copy raw file** (the two-s
 `supabase/patch_customer_pick.sql` lets a walk-in or phone booking go to the exact customer staff picked from search on **New sale**. Before this, bookings only matched by mobile or rego, so a customer typed in by name (or with no mobile on file) got duplicated. If a picked customer has no mobile or email yet, the one typed in is saved to their record, unless it already belongs to someone else.
 
 Additive, no data changes, safe to run twice. The last line prints `staff_resolve_customer`, which means it worked.
+
+## 2c. Cash-change patch (run once)
+
+`supabase/patch_cash_change.sql` stores the cash a customer handed over and the change given, so receipts (printed and online) show them. It adds two columns to payments and one small function. It's additive and safe to run twice. The last query lists `tendered` and `change_given`.
+
+Until it's run, checkout still shows the change on screen, but receipts only show the payment amount.
 
 ## 3. Email confirmation — turn it back on before going public
 
