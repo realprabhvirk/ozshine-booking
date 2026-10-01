@@ -7,6 +7,7 @@ import { centsToDbAmount, type Cents } from "@/lib/core/money";
 import type { InvoiceStatus, PaymentMethod, VehicleType, BookingStatus } from "@/lib/core/status";
 import { addDaysISO } from "@/lib/core/time";
 import { announceChange } from "./actions";
+import { fetchAllPages } from "@/lib/paginate";
 
 const ACTOR = null;
 
@@ -122,14 +123,17 @@ export type InvoiceListRow = {
 };
 
 export async function fetchInvoices(supabase: SupabaseClient, from: string, to: string): Promise<InvoiceListRow[]> {
-  const res = await supabase
-    .from("invoices")
-    .select("id, number, status, total, balance_due, issued_at, created_at, customer:customers(name, phone, is_walkin_placeholder), booking:bookings(id, reference_code, vehicle:vehicles(rego), service:services(name))")
-    .gte("created_at", shopDayStart(from))
-    .lt("created_at", shopDayStart(addDaysISO(to, 1)))
-    .order("created_at", { ascending: false })
-    .limit(1000);
-  return check(res) as unknown as InvoiceListRow[];
+  return fetchAllPages<InvoiceListRow>(
+    (a, b) =>
+      supabase
+        .from("invoices")
+        .select("id, number, status, total, balance_due, issued_at, created_at, customer:customers(name, phone, is_walkin_placeholder), booking:bookings(id, reference_code, vehicle:vehicles(rego), service:services(name))")
+        .gte("created_at", shopDayStart(from))
+        .lt("created_at", shopDayStart(addDaysISO(to, 1)))
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(a, b) as unknown as PromiseLike<{ data: InvoiceListRow[] | null; error: unknown }>,
+  );
 }
 
 export type DebtorRow = {

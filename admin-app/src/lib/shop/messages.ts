@@ -67,6 +67,7 @@ export async function fetchOutbox(supabase: SupabaseClient, f: OutboxFilter): Pr
     .from("message_outbox")
     .select(OUTBOX_SELECT, { count: "estimated" })
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .range(page * OUTBOX_PAGE, page * OUTBOX_PAGE + OUTBOX_PAGE - 1);
   if (f.status === "skipped") q = q.in("status", ["skipped_opt_out", "skipped_no_contact"]);
   else if (f.status) q = q.eq("status", f.status);

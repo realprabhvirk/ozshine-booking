@@ -2,6 +2,7 @@
 // Supabase clients; all access goes through RLS (staff read their location).
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AppError, toAppError } from "@/lib/core/errors";
+import { fetchAllPages } from "@/lib/paginate";
 import type { BoardBooking, Catalogue, DashboardStats } from "./types";
 
 export const BOOKING_SELECT = [
@@ -40,15 +41,17 @@ export async function fetchRange(
   to: string,
   opts: { includeCancelled?: boolean } = {},
 ): Promise<BoardBooking[]> {
-  let q = supabase
-    .from("bookings")
-    .select(BOOKING_SELECT)
-    .gte("requested_date", from)
-    .lte("requested_date", to)
-    .order("starts_at", { ascending: true })
-    .limit(1000);
-  if (!opts.includeCancelled) q = q.not("status", "in", "(declined,cancelled,no_show)");
-  return check(await q) as unknown as BoardBooking[];
+  return fetchAllPages<BoardBooking>((a, b) => {
+    let q = supabase
+      .from("bookings")
+      .select(BOOKING_SELECT)
+      .gte("requested_date", from)
+      .lte("requested_date", to)
+      .order("starts_at", { ascending: true })
+      .order("id", { ascending: true });
+    if (!opts.includeCancelled) q = q.not("status", "in", "(declined,cancelled,no_show)");
+    return q.range(a, b) as unknown as PromiseLike<{ data: BoardBooking[] | null; error: unknown }>;
+  });
 }
 
 export async function fetchBooking(supabase: SupabaseClient, id: string): Promise<BoardBooking> {

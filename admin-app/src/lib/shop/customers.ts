@@ -7,6 +7,7 @@ import { normalizeRego } from "@/lib/core/phone";
 import type { VehicleType } from "@/lib/core/status";
 import { addDaysISO, todayISO } from "@/lib/core/time";
 import { BOOKING_SELECT } from "./queries";
+import { fetchAllPages } from "@/lib/paginate";
 import { announceChange } from "./actions";
 import type { BoardBooking } from "./types";
 import { shopDayStart } from "./money";
@@ -83,6 +84,9 @@ export async function fetchDirectory(
   if (sort === "recent") query = query.order("last_visit_at", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false });
   if (sort === "visits") query = query.order("visit_count", { ascending: false }).order("name");
   if (sort === "spend") query = query.order("lifetime_spend", { ascending: false }).order("name");
+  // Tie-breaker so paging (and the CSV export) never skips or repeats anyone:
+  // imported customers share the same created_at.
+  query = query.order("id", { ascending: true });
 
   const res = await query.range(page * pageSize, page * pageSize + pageSize - 1);
   const rows = check(res) as unknown as DirectoryRow[];
@@ -102,9 +106,11 @@ export async function fetchDirectoryStats(supabase: SupabaseClient) {
 }
 
 export async function fetchAllTags(supabase: SupabaseClient): Promise<string[]> {
-  const res = await supabase.from("customers").select("tags").not("tags", "eq", "{}").limit(2000);
+  const rows = await fetchAllPages<{ tags: string[] }>((a, b) =>
+    supabase.from("customers").select("tags").not("tags", "eq", "{}").order("id").range(a, b) as unknown as PromiseLike<{ data: Array<{ tags: string[] }> | null; error: unknown }>,
+  ).catch(() => []);
   const all = new Set<string>();
-  for (const r of (res.data ?? []) as Array<{ tags: string[] }>) r.tags.forEach((t) => all.add(t));
+  for (const r of rows) r.tags.forEach((t) => all.add(t));
   return [...all].sort();
 }
 
