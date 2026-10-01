@@ -1604,7 +1604,10 @@ stable
 security definer
 set search_path = public
 as $$
-  select coalesce(nullif(rtrim((select public_site_url from settings where location_id = default_location_id()), '/'), ''), '') || p_path;
+  -- Falls back to the live booking site so message links always work, even
+  -- before Settings > Business > Booking website address is filled in.
+  select coalesce(nullif(rtrim((select public_site_url from settings where location_id = default_location_id()), '/'), ''),
+                  'https://ozshine-booking.vercel.app') || p_path;
 $$;
 
 -- Placeholder values for a booking, shared by every booking-related message.
@@ -1626,7 +1629,9 @@ as $$
     'feedback_url', site_url('/manage/' || b.manage_token::text || '#feedback'),
     'business_name', st.business_name,
     'shop_phone', st.phone,
-    'review_url', coalesce(st.review_url, '')
+    -- The Google review link from Settings > Business; until it's filled in,
+    -- the booking's own rating page.
+    'review_url', coalesce(nullif(btrim(st.review_url), ''), site_url('/manage/' || b.manage_token::text || '#feedback'))
   )
   from bookings b
   join customers c on c.id = b.customer_id
@@ -6044,9 +6049,11 @@ begin
     feedback, message_outbox, campaigns, customer_notes, customer_events, waitlist, testimonials, vouchers,
     day_closes, rate_limits, staff_sessions, staff_invites, bookings, vehicles, customers, audit_log;
 
-  update invoice_counters set last_number = 0;
-  update promo_codes set used_count = 0;
-  update automations set last_run_at = null, last_run_count = 0;
+  -- "where true": Supabase rejects UPDATE without a WHERE clause on API
+  -- requests (pg-safeupdate), which made this whole wipe fail and roll back.
+  update invoice_counters set last_number = 0 where true;
+  update promo_codes set used_count = 0 where true;
+  update automations set last_run_at = null, last_run_count = 0 where true;
   insert into customers (name, phone, is_walkin_placeholder, marketing_opt_in)
   values ('Walk-in Guest', null, true, false);
 
@@ -6057,7 +6064,7 @@ begin
     begin
       delete from auth.users u where not exists (select 1 from staff s where s.auth_user_id = u.id);
       get diagnostics logins = row_count;
-    exception when insufficient_privilege then
+    exception when others then
       logins := -1;
     end;
   end if;
@@ -6480,10 +6487,10 @@ insert into message_templates (key, channel, name, category, subject, body) valu
    E'Hi {{first_name}},\n\nThanks for coming in. Your tax invoice {{invoice_number}} for ${{amount}} is here:\n{{receipt_url}}\n\nThe OzShine team'),
   ('payment_reminder', 'sms', 'Payment reminder', 'transactional', null,
    'Hi {{first_name}}, a friendly reminder there''s ${{balance}} owing on OzShine invoice {{invoice_number}}. Details: {{receipt_url}}'),
-  ('review_request', 'sms', 'How did we go?', 'transactional', null,
-   'Thanks for visiting OzShine, {{first_name}}! How did we go? Rate your visit in 10 seconds: {{feedback_url}}'),
-  ('review_request', 'email', 'How did we go?', 'transactional', 'How did we go, {{first_name}}?',
-   E'Hi {{first_name}},\n\nThanks for trusting us with {{rego}}. We''d love to know how we went — it takes 10 seconds:\n{{feedback_url}}\n\nThe OzShine team'),
+  ('review_request', 'sms', 'Google review request', 'transactional', null,
+   'Thanks for visiting OzShine Beenleigh, {{first_name}}! If we did a great job, a quick Google review really helps: {{review_url}}'),
+  ('review_request', 'email', 'Google review request', 'transactional', 'Thanks for visiting, {{first_name}}',
+   E'Hi {{first_name}},\n\nThanks for trusting us with {{rego}} today. We hope it''s shining!\n\nIf we did a great job, a quick Google review helps other locals find us. It takes less than a minute.\n{{review_url}}\n\nThe OzShine team'),
   ('loyalty_earned', 'sms', 'Reward earned', 'transactional', null,
    'Legend, {{first_name}}! You''ve earned {{reward}} at OzShine. Code {{reward_code}} — we''ll apply it next visit.'),
   ('loyalty_earned', 'email', 'Reward earned', 'transactional', 'You''ve earned a reward, {{first_name}}',
