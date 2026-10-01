@@ -25,6 +25,7 @@ create table auth.users (
   id uuid primary key,
   email text,
   raw_user_meta_data jsonb not null default '{}'::jsonb,
+  email_confirmed_at timestamptz,
   created_at timestamptz not null default now()
 );
 create function auth.uid() returns uuid language sql stable as $$

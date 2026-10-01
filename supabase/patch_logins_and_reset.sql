@@ -4,8 +4,7 @@
 -- 1. Every staff login is a full admin with the same access, and per-person
 --    PINs stay off however many logins there are.
 -- 2. Logins are managed ONLY here in Supabase:
---      a) Authentication → Users → Add user (email + password, tick
---         "Auto Confirm User")
+--      a) Authentication → Users → Add user (email + password)
 --      b) SQL Editor:  select grant_staff_access('their@email.com', 'Their Name');
 --    To take access away:  select remove_staff_access('their@email.com');
 --    Neither app can call these.
@@ -44,6 +43,8 @@ begin
   if uid is null then
     raise exception 'No Supabase account with the email %. Create it first under Authentication → Users → Add user.', em;
   end if;
+  -- Staff never need to verify their email, whatever the Auth settings.
+  update auth.users set email_confirmed_at = coalesce(email_confirmed_at, now()) where id = uid;
   select id into sid from staff where auth_user_id = uid;
   if sid is not null then
     update staff set active = true, role = 'admin', email = em,
