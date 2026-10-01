@@ -288,6 +288,7 @@ export function InvoiceDetailClient({ initial }: { initial: Invoice }) {
                           {p.received_by && ` · ${p.received_by.name}`}
                           {p.reference && ` · Ref ${p.reference}`}
                           {p.note && ` · ${p.note}`}
+                          {p.tendered != null && p.change_given != null && ` · ${formatCents(toCents(p.tendered))} handed over, ${formatCents(toCents(p.change_given))} change`}
                         </p>
                       </div>
                       <span className={cn("font-semibold tabular-nums", isRefund && "text-bad-ink")}>{formatCents(amt)}</span>

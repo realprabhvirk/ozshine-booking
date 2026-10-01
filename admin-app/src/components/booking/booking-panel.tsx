@@ -262,6 +262,11 @@ function PanelBody({ id }: { id: string }) {
             Start in a bay…
           </Button>
         )}
+        {b.status === "in_progress" && (
+          <Button variant="secondary" onClick={() => actions.openDialog("move_bay", b)}>
+            Change bay{b.bay ? ` (${b.bay.name})` : ""}…
+          </Button>
+        )}
         {b.status === "approved" && (
           <Button variant="ghost" onClick={() => actions.openDialog("no_show", b)}>
             No-show

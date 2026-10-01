@@ -431,6 +431,10 @@ create table if not exists payments (
 create unique index if not exists payments_idempotency_uniq on payments(idempotency_key) where idempotency_key is not null;
 create index if not exists payments_invoice_idx on payments(invoice_id);
 create index if not exists payments_received_idx on payments(received_at);
+-- Cash payments: what the customer handed over and the change given back,
+-- so receipts can show it (set by set_payment_tendered right after payment).
+alter table payments add column if not exists tendered numeric(10, 2);
+alter table payments add column if not exists change_given numeric(10, 2);
 
 create table if not exists voucher_redemptions (
   id          uuid primary key default gen_random_uuid(),
@@ -2421,7 +2425,8 @@ as $$
     'items', coalesce((select jsonb_agg(jsonb_build_object('description', it.description, 'quantity', it.quantity,
                  'unit_price', it.unit_price, 'line_total', it.line_total) order by it.sort, it.created_at)
                from invoice_items it where it.invoice_id = i.id), '[]'::jsonb),
-    'payments', coalesce((select jsonb_agg(jsonb_build_object('method', p.method, 'amount', p.amount, 'received_at', p.received_at)
+    'payments', coalesce((select jsonb_agg(jsonb_build_object('method', p.method, 'amount', p.amount, 'received_at', p.received_at,
+                  'tendered', p.tendered, 'change_given', p.change_given)
                   order by p.received_at) from payments p where p.invoice_id = i.id), '[]'::jsonb),
     'business', jsonb_build_object('name', st.business_name, 'abn', st.abn, 'address', st.address,
                   'phone', st.phone, 'email', st.email, 'footer', st.invoice_footer, 'tax_rate', st.tax_rate)
@@ -3783,6 +3788,36 @@ begin
   return (select jsonb_build_object('payment_id', pay_id, 'status', i.status, 'amount_paid', i.amount_paid,
             'balance_due', i.balance_due, 'duplicate', false)
           from invoices i where i.id = p_invoice_id);
+end;
+$$;
+
+-- Record the cash handed over for a cash payment and the change given. Called
+-- straight after record_payment; safe to repeat (last value wins).
+create or replace function public.set_payment_tendered(p_payment_id uuid, p_tendered numeric, p_actor uuid)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $$
+declare
+  actor uuid := resolve_actor(p_actor);
+  p record;
+  t numeric(10, 2) := round(coalesce(p_tendered, 0), 2);
+begin
+  select pa.* into p from payments pa join invoices i on i.id = pa.invoice_id
+  where pa.id = p_payment_id and i.location_id = staff_location_id() for update of pa;
+  if not found then
+    perform oz_raise('NOT_FOUND', 'We couldn''t find that payment.');
+  end if;
+  if p.method <> 'cash' or p.amount <= 0 then
+    perform oz_raise('INVALID_INPUT', 'Only cash payments have change.');
+  end if;
+  if t < p.amount then
+    perform oz_raise('INVALID_INPUT', 'The cash handed over is less than the payment.');
+  end if;
+  update payments set tendered = t, change_given = t - p.amount where id = p.id;
+  return jsonb_build_object('tendered', t, 'change_given', t - p.amount);
 end;
 $$;
 
@@ -5739,6 +5774,7 @@ grant execute on function
   public.remove_invoice_item(uuid, uuid),
   public.apply_invoice_code(uuid, text, uuid),
   public.record_payment(uuid, numeric, text, text, uuid, text, text),
+  public.set_payment_tendered(uuid, numeric, uuid),
   public.refund_payment(uuid, numeric, text, uuid),
   public.void_invoice(uuid, text, uuid),
   public.send_invoice_message(uuid, text, uuid),
