@@ -17,7 +17,9 @@ How to copy a SQL file: open it on GitHub → click **Copy raw file** (the two-s
 | 2d. Equal logins + "Clear all data" | `supabase/patch_logins_and_reset.sql` | ✅ Done |
 | 2e. Staff never need email verification | `supabase/patch_staff_no_email_check.sql` | ✅ Done |
 | 2f. Instant, never-twice live sending | `supabase/patch_messaging_live.sql` | ✅ Done |
-| 2g. "Car's ready" email + "SMS off" label | `supabase/patch_messaging_live_2.sql` | ⏳ **Run this now** |
+| 2g. "Car's ready" email + "SMS off" label | `supabase/patch_messaging_live_2.sql` | ✅ Done |
+| 2h. Working message links + Google review | `supabase/patch_message_links.sql` | ⏳ **Run this now** |
+| 2i. Fix "Clear all data" | `supabase/patch_logins_and_reset_2.sql` | ⏳ **Run this now** |
 | 3. Turn email confirmation back on | Authentication settings | ⏳ Before real customers sign up |
 | 4. Allow the password-reset link | Authentication → URL Configuration | ⏳ Recommended |
 
@@ -67,6 +69,14 @@ No table or data changes; safe to run twice. Run it before switching Messages �
 ## 2g. Email-updates patch (run once, after 2f)
 
 `supabase/patch_messaging_live_2.sql` adds a "ready for pickup" email (it was text-only) and makes texts that can't be sent in Live mode (no SMS account) show as "Not sent · SMS off" instead of "Sent (demo)". It never overwrites a template you've edited and changes no data.
+
+## 2h. Message-links patch (run once)
+
+`supabase/patch_message_links.sql`: links in texts and emails used to start with "/manage/…" because Settings → Business → "Booking website address" was empty. They now fall back to https://ozshine-booking.vercel.app. The after-visit message now asks for a Google review using Settings → Business → "Review link". Wording you've edited yourself is left alone.
+
+## 2i. Clear-all-data fix (run once)
+
+`supabase/patch_logins_and_reset_2.sql`: "Delete all data now" failed because Supabase refuses an update with no WHERE clause when it comes from the app. Same data is cleared and kept as before. Running the patch deletes nothing.
 
 ## 3. Email confirmation — turn it back on before going public
 

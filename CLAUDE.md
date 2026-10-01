@@ -28,7 +28,7 @@ ozshine-booking/
     upgrade_v2.sql  <- additive, idempotent upgrade the owner pasted into the LIVE project (source of truth)
     schema.sql      <- generated (supabase/tests: npm run build-schema) — brand-new empty project only
     post_merge_hardening.sql / rollback_hardening.sql, patch_*.sql (small additive patches, each run once)
-    tests/          <- PGlite test suite (89 tests, incl. the app↔database contract check): npm test
+    tests/          <- PGlite test suite (91 tests, incl. the app↔database contract check): npm test
   docs/             <- UPGRADE_NOTES, HANDOVER, TEST_PLAN, SUPABASE_STEPS, QA_REPORT
   instructions/     <- owner's plain-English steps (which SQL to run, logins, going live)
   CLAUDE.md         <- this file
@@ -36,7 +36,7 @@ ozshine-booking/
 
 Each app is a fully independent Next.js project — don't share a `package.json` or assume a single root config between them. They only share the Supabase backend. `src/lib/core` (phone/rego, money in cents, GST, Brisbane time, statuses, error codes, schemas) is copied into both apps and must stay identical — a test in `supabase/tests` fails if they drift.
 Deployment: two separate Vercel projects, both connected to this one GitHub repo, each with its Root Directory set to its own folder (`customer-app` / `admin-app`). A push to `main` rebuilds production; a PR gets Preview deployments.
-Env vars: never put real Supabase keys in this repo (never the service-role key, anywhere). Required in both apps: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Optional (documented in each `.env.local.example`): customer-app `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_ADMIN_APP_URL`; admin-app `CRON_SECRET`, `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`/`TWILIO_FROM`, `RESEND_API_KEY`/`RESEND_FROM`. Any new env var must be optional and documented.
+Env vars: never put real Supabase keys in this repo (never the service-role key, anywhere). Required in both apps: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Optional (documented in each `.env.local.example`): customer-app `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_ADMIN_APP_URL`; admin-app `CRON_SECRET`, `NEXT_PUBLIC_BOOKING_SITE_URL`, `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`/`TWILIO_FROM`, `RESEND_API_KEY`/`RESEND_FROM`. Any new env var must be optional and documented.
 
 Database rules (Supabase — the owner runs SQL himself via the dashboard, non-technical)
 * The live project holds real data: SQL for it must be additive and idempotent. Never ship `drop table` or anything destructive for the live project. Change `upgrade_v2.sql` (or add a new additive script), regenerate `schema.sql`, keep `supabase/tests` green.

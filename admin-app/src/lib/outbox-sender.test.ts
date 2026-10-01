@@ -12,6 +12,7 @@ function fakeDb(queue: Array<{ id: string; channel: "sms" | "email"; to: string;
   const db = {
     rpc: async (fn: string, args: Record<string, unknown>) => {
       calls.push({ fn, args });
+      if (fn === "get_public_settings") return { data: { business_name: "OzShine Hand Car Wash", address: "114-118 George St, Beenleigh", phone: "0449 558 449" }, error: null };
       if (fn === "claim_outbox_batch_with_key") {
         const data = handed ? [] : queue;
         handed = true;
@@ -45,7 +46,7 @@ const queue = [
 ];
 
 test("email-only live: emails go through Resend once each, texts are marked demo", async () => {
-  const sent: Array<{ headers: Record<string, string>; body: { from: string; to: string[] } }> = [];
+  const sent: Array<{ headers: Record<string, string>; body: { from: string; to: string[]; html?: string } }> = [];
   const realFetch = globalThis.fetch;
   globalThis.fetch = (async (_url: string, init: RequestInit) => {
     sent.push({ headers: init.headers as Record<string, string>, body: JSON.parse(String(init.body)) });
@@ -59,6 +60,7 @@ test("email-only live: emails go through Resend once each, texts are marked demo
       assert.equal(sent.length, 2);
       assert.equal(sent[0].body.from, "OzShine Beenleigh <beenleigh@ozshinecarwash.com.au>");
       assert.equal(sent[0].headers["Idempotency-Key"], "oz-e1");
+      assert.ok(sent[0].body.html?.includes("email-logo.png") && sent[0].body.html.includes("114-118 George St, Beenleigh"), "branded HTML sent");
       assert.deepEqual(calls.filter((c) => c.fn === "simulate_outbox_message_with_key").map((c) => c.args.p_id), ["s1"]);
       assert.deepEqual(calls.filter((c) => c.fn === "report_outbox_result_with_key").map((c) => [c.args.p_id, c.args.p_ok]), [["e1", true], ["e2", true]]);
     });

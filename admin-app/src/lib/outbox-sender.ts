@@ -3,6 +3,21 @@
 // ever queued for sending in Demo mode, so both are no-ops there.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { providerStatus, sendMessage, type OutgoingMessage } from "./message-adapters.ts";
+import type { EmailBrand } from "./email-html.ts";
+
+// Booking site address (logo + "Book online" link in emails). Optional env.
+const BOOKING_SITE_URL = (process.env.NEXT_PUBLIC_BOOKING_SITE_URL?.trim() || "https://ozshine-booking.vercel.app").replace(/\/+$/, "");
+
+async function loadBrand(supabase: SupabaseClient): Promise<EmailBrand> {
+  const fallback: EmailBrand = { businessName: "OzShine Beenleigh", address: null, phone: null, siteUrl: BOOKING_SITE_URL };
+  try {
+    const { data } = await supabase.rpc("get_public_settings");
+    const s = (data ?? {}) as { business_name?: string | null; address?: string | null; phone?: string | null };
+    return { ...fallback, businessName: s.business_name || fallback.businessName, address: s.address || null, phone: s.phone || null };
+  } catch {
+    return fallback;
+  }
+}
 
 export type FlushResult = { sent: number; failed: number; simulated: number; retrying: number };
 
@@ -15,6 +30,7 @@ export async function flushOutbox(supabase: SupabaseClient, key: string, opts: {
   const stopAt = Date.now() + budgetMs;
   const ready = providerStatus();
   const out: FlushResult = { sent: 0, failed: 0, simulated: 0, retrying: 0 };
+  let brand: EmailBrand | null = null;
   while (Date.now() < stopAt) {
     // Claimed messages are leased to this run for 10 minutes, so a parallel
     // run can't send them too. Anything left unsent comes back after that.
@@ -33,7 +49,8 @@ export async function flushOutbox(supabase: SupabaseClient, key: string, opts: {
         continue;
       }
       const started = Date.now();
-      const r = await sendMessage(m);
+      if (m.channel === "email" && !brand) brand = await loadBrand(supabase);
+      const r = await sendMessage(m, brand ?? undefined);
       if (!r.ok && r.retry) {
         out.retrying++;
       } else {

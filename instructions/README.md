@@ -15,7 +15,9 @@ Everything you need to run or set up yourself, in plain steps. Nothing here need
 | 5 | `supabase/patch_logins_and_reset.sql` | Equal logins + Settings → Clear all data | ✅ Done |
 | 6 | `supabase/patch_staff_no_email_check.sql` | Staff logins never need email verification | ✅ Done |
 | 7 | `supabase/patch_messaging_live.sql` | Real emails go out instantly, never twice; texts stay demo until SMS is set up | ✅ Done |
-| 8 | `supabase/patch_messaging_live_2.sql` | "Car's ready" by email too; unsent texts say "SMS off" instead of "Sent (demo)" | ⏳ Run this |
+| 8 | `supabase/patch_messaging_live_2.sql` | "Car's ready" by email too; unsent texts say "SMS off" instead of "Sent (demo)" | ✅ Done |
+| 9 | `supabase/patch_message_links.sql` | Links in texts/emails work; the after-visit message asks for a Google review | ⏳ Run this |
+| 10 | `supabase/patch_logins_and_reset_2.sql` | Fixes Settings → Clear all data ("Something went wrong") | ⏳ Run this |
 
 New patches will be added to this table with ⏳ when there's something to run.
 
@@ -62,6 +64,8 @@ Texts stay "Sent (demo)" until an SMS account is added later; only emails go out
 6. Test: make a booking on the booking site with your own email. The confirmation should land within a few seconds and show as "Sent" (not demo) in Messages.
 
 To stop real sending at any time: Messages → Setup → **Back to demo mode**.
+
+**Google review link:** staff app → **Settings → Business → Review link**: paste your Google review link (Google Business Profile → "Ask for reviews" → copy link). The after-visit email and text use it. Until it's filled in they link to the booking's own rating page.
 
 ## 5. Vercel (already set up, for reference)
 

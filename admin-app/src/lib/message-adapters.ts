@@ -3,6 +3,7 @@
 // "message provider" setting is switched from Demo to Live. See
 // docs/UPGRADE_NOTES.md → Env vars.
 import { toE164, type Channel } from "./messaging.ts";
+import { renderEmailHtml, type EmailBrand } from "./email-html.ts";
 
 // retry: the provider said "slow down" / is briefly down, so leave the message
 // queued; it's picked up again when its lease runs out.
@@ -43,7 +44,7 @@ async function sendSms(to: string | null, body: string): Promise<SendResult> {
   return res.ok ? { ok: true, provider: "twilio", providerId: json.sid ?? null } : { ok: false, provider: "twilio", error: json.message ?? `Twilio error ${res.status}`, retry: retryable(res.status) };
 }
 
-async function sendEmail(to: string | null, subject: string | null, body: string, id: string): Promise<SendResult> {
+async function sendEmail(to: string | null, subject: string | null, body: string, id: string, brand?: EmailBrand): Promise<SendResult> {
   const key = process.env.RESEND_API_KEY;
   const from = emailFrom();
   if (!key) return { ok: false, provider: "resend", error: "Email isn't set up (Resend details missing in Vercel)." };
@@ -53,16 +54,22 @@ async function sendEmail(to: string | null, subject: string | null, body: string
     // Same outbox id = same email: Resend drops repeats for 24h, so a retry
     // after a timeout can't send it twice.
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "Idempotency-Key": `oz-${id}` },
-    body: JSON.stringify({ from, to: [to], subject: subject || "A message from OzShine", text: body }),
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject: subject || "A message from OzShine",
+      text: body,
+      ...(brand ? { html: renderEmailHtml({ subject: subject || "A message from OzShine", body, brand }) } : {}),
+    }),
     signal: AbortSignal.timeout(15000),
   });
   const json = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
   return res.ok ? { ok: true, provider: "resend", providerId: json.id ?? null } : { ok: false, provider: "resend", error: json.message ?? `Resend error ${res.status}`, retry: retryable(res.status) };
 }
 
-export async function sendMessage(m: OutgoingMessage): Promise<SendResult> {
+export async function sendMessage(m: OutgoingMessage, brand?: EmailBrand): Promise<SendResult> {
   try {
-    return m.channel === "sms" ? await sendSms(m.to, m.body) : await sendEmail(m.to, m.subject, m.body, m.id);
+    return m.channel === "sms" ? await sendSms(m.to, m.body) : await sendEmail(m.to, m.subject, m.body, m.id, brand);
   } catch (e) {
     // Network error / timeout: we can't tell if it went. Email retries safely
     // (idempotency key); a text is marked failed so staff decide on a resend.
