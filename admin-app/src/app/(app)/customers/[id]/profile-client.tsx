@@ -442,16 +442,16 @@ export function CustomerProfileClient({ initial }: { initial: CustomerProfile })
         </Card>
       )}
 
-      <CustomerDialog key={editOpen ? `edit-${c.id}` : "closed"} open={editOpen} onClose={() => setEditOpen(false)} customer={c} />
+      <CustomerDialog key={editOpen ? `edit-${c.id}` : "edit-closed"} open={editOpen} onClose={() => setEditOpen(false)} customer={c} />
       <VehicleDialog
-        key={vehicleEdit === null ? "none" : vehicleEdit === "new" ? "new" : vehicleEdit.id}
+        key={vehicleEdit === null ? "vehicle-closed" : vehicleEdit === "new" ? "vehicle-new" : `vehicle-${vehicleEdit.id}`}
         open={vehicleEdit !== null}
         onClose={() => setVehicleEdit(null)}
         customerId={c.id}
         vehicle={vehicleEdit === "new" ? null : vehicleEdit}
       />
       <MessageDialog key={messageOpen ? "msg-open" : "msg-closed"} open={messageOpen} onClose={() => setMessageOpen(false)} customer={c} />
-      <MergeDialog key={mergeOpen ? "merge" : "closed"} open={mergeOpen} onClose={() => setMergeOpen(false)} keep={c} />
+      <MergeDialog key={mergeOpen ? "merge-open" : "merge-closed"} open={mergeOpen} onClose={() => setMergeOpen(false)} keep={c} />
       <ConfirmDialog
         open={!!archive}
         onClose={() => setArchive(null)}

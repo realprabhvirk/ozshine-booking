@@ -403,9 +403,9 @@ export function InvoiceDetailClient({ initial }: { initial: Invoice }) {
         </aside>
       </div>
 
-      <LineDialog key={lineMode ? JSON.stringify(lineMode.kind === "edit" ? lineMode.item.id : lineMode.kind) : "none"} mode={lineMode} invoiceId={inv.id} onClose={() => setLineMode(null)} />
+      <LineDialog key={lineMode ? `line-${lineMode.kind === "edit" ? lineMode.item.id : lineMode.kind}` : "line-closed"} mode={lineMode} invoiceId={inv.id} onClose={() => setLineMode(null)} />
       <RefundDialog
-        key={refundOf?.id ?? "none"}
+        key={refundOf ? `refund-${refundOf.id}` : "refund-closed"}
         payment={refundOf}
         refundable={refundOf ? toCents(refundOf.amount) - (refunded.get(refundOf.id) ?? 0) : 0}
         onClose={() => setRefundOf(null)}
