@@ -11,7 +11,9 @@
 --   * Additive only: `create ... if not exists`, `add column if not exists`,
 --     `create or replace function`, `drop policy if exists` + `create policy`,
 --     seeds that skip rows that already exist. No `drop table`, no
---     `truncate`, no deleting of customer/booking data.
+--     `truncate`, no deleting of customer/booking data when it runs. (The
+--     one wipe, reset_shop_data(), only runs when the owner presses
+--     Settings → Clear all data and types the confirmation.)
 --   * Safe to re-run. Running it twice changes nothing the second time.
 --   * Backwards-compatible with the v1 apps currently on `main`: every v1
 --     column keeps its name and meaning, and the v1 RLS policies stay in place
@@ -1006,7 +1008,10 @@ stable
 security definer
 set search_path = public
 as $$
-  select (select count(*) from staff where active and location_id = staff_location_id()) > 1;
+  -- Owner's decision: every login is an equal admin and changes are recorded
+  -- against the login itself, so per-person PINs stay switched off however
+  -- many logins exist. (The PIN machinery is kept for a possible future.)
+  select false;
 $$;
 
 create or replace function public.resolve_actor(p_actor uuid, p_require_admin boolean default false)
@@ -5487,6 +5492,128 @@ end;
 $$;
 
 -- -----------------------------------------------------------------------------
+-- 21b. Logins (managed by the owner in Supabase only) and "clear all data"
+-- -----------------------------------------------------------------------------
+
+-- Give an existing Supabase account access to the staff app as a full admin.
+-- Run by the owner in the Supabase SQL Editor after creating the user under
+-- Authentication → Users:  select grant_staff_access('jo@example.com', 'Jo');
+-- Not callable from either app.
+create or replace function public.grant_staff_access(p_email text, p_name text default null)
+returns text
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $$
+declare
+  em text := lower(btrim(coalesce(p_email, '')));
+  uid uuid;
+  sid uuid;
+begin
+  select id into uid from auth.users where lower(email) = em;
+  if uid is null then
+    raise exception 'No Supabase account with the email %. Create it first under Authentication → Users → Add user.', em;
+  end if;
+  select id into sid from staff where auth_user_id = uid;
+  if sid is not null then
+    update staff set active = true, role = 'admin', email = em,
+      name = coalesce(nullif(btrim(p_name), ''), name)
+    where id = sid;
+    perform write_audit('staff.update', 'staff', sid, null, jsonb_build_object('email', em, 'access', 'granted'));
+    return 'Access switched on for ' || em || '.';
+  end if;
+  insert into staff (auth_user_id, location_id, name, role, email)
+  values (uid, default_location_id(), coalesce(nullif(left(btrim(p_name), 80), ''), split_part(em, '@', 1)), 'admin', em)
+  returning id into sid;
+  perform write_audit('staff.invite_claimed', 'staff', sid, null, jsonb_build_object('email', em, 'role', 'admin'));
+  return 'Done: ' || em || ' can now log in to the staff app.';
+end;
+$$;
+
+-- Switch a login's access off (their history stays). Owner only, SQL Editor:
+--   select remove_staff_access('jo@example.com');
+create or replace function public.remove_staff_access(p_email text)
+returns text
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $$
+declare
+  em text := lower(btrim(coalesce(p_email, '')));
+  st record;
+begin
+  select s.* into st from staff s join auth.users u on u.id = s.auth_user_id where lower(u.email) = em;
+  if not found then
+    raise exception 'No staff login with the email %.', em;
+  end if;
+  if st.active and (select count(*) from staff where active and location_id = st.location_id) <= 1 then
+    raise exception 'That is the last login with access. Give someone else access first.';
+  end if;
+  update staff set active = false where id = st.id;
+  update staff_sessions set ended_at = now() where staff_id = st.id and ended_at is null;
+  perform write_audit('staff.update', 'staff', st.id, null, jsonb_build_object('email', em, 'access', 'removed'));
+  return 'Access removed for ' || em || '.';
+end;
+$$;
+
+-- Settings → Clear all data. Wipes every customer, car, booking, invoice,
+-- payment, message, review, voucher and log so the system can be handed over
+-- fresh. Keeps the setup: business details, hours, services & prices,
+-- extras, bays, closures, promo codes (use counts reset), loyalty rules,
+-- message wording, automations and staff logins. Needs the exact phrase.
+create or replace function public.reset_shop_data(p_confirm text, p_delete_customer_logins boolean, p_actor uuid)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $$
+declare
+  actor uuid := resolve_actor(p_actor, true);
+  counts jsonb;
+  logins int := 0;
+begin
+  if coalesce(p_confirm, '') <> 'DELETE EVERYTHING' then
+    perform oz_raise('INVALID_INPUT', 'Type DELETE EVERYTHING to confirm.');
+  end if;
+  counts := jsonb_build_object(
+    'customers', (select count(*) from customers where not is_walkin_placeholder),
+    'bookings', (select count(*) from bookings),
+    'invoices', (select count(*) from invoices),
+    'payments', (select count(*) from payments),
+    'messages', (select count(*) from message_outbox));
+
+  truncate table voucher_redemptions, payments, invoice_items, invoices, booking_addons, loyalty_rewards,
+    feedback, message_outbox, campaigns, customer_notes, customer_events, waitlist, testimonials, vouchers,
+    day_closes, rate_limits, staff_sessions, staff_invites, bookings, vehicles, customers, audit_log;
+
+  update invoice_counters set last_number = 0;
+  update promo_codes set used_count = 0;
+  update automations set last_run_at = null, last_run_count = 0;
+  insert into customers (name, phone, is_walkin_placeholder, marketing_opt_in)
+  values ('Walk-in Guest', null, true, false);
+
+  -- Online customer accounts (anyone who isn't a staff login).
+  -- If Supabase ever refuses this, the wipe still completes and reports -1
+  -- (the accounts can then be deleted under Authentication → Users).
+  if coalesce(p_delete_customer_logins, false) then
+    begin
+      delete from auth.users u where not exists (select 1 from staff s where s.auth_user_id = u.id);
+      get diagnostics logins = row_count;
+    exception when insufficient_privilege then
+      logins := -1;
+    end;
+  end if;
+
+  perform set_config('oz.actor_staff_id', actor::text, true);
+  perform write_audit('data.reset', 'settings', null, counts, jsonb_build_object('customer_logins_deleted', logins));
+  return counts || jsonb_build_object('customer_logins', logins);
+end;
+$$;
+
+-- -----------------------------------------------------------------------------
 -- 22. Views
 -- -----------------------------------------------------------------------------
 
@@ -5788,6 +5915,7 @@ grant execute on function
   public.import_customers_csv_rows(jsonb, boolean, uuid),
   public.invite_staff(text, text, text, uuid),
   public.update_staff(uuid, jsonb, uuid),
+  public.reset_shop_data(text, boolean, uuid),
   public.day_summary(date),
   public.close_day(date, numeric, text, uuid),
   public.reopen_day(date, uuid),

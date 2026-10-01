@@ -10,8 +10,9 @@ How to copy a SQL file: open it on GitHub → click **Copy raw file** (the two-s
 |---|---|---|
 | 1. Upgrade the database to V2 | `supabase/upgrade_v2.sql` | ✅ Done (you ran it after Phase 1) |
 | 2. Lock down old direct-write permissions | `supabase/post_merge_hardening.sql` | ✅ Done |
-| 2b. Pick existing customers on New sale | `supabase/patch_customer_pick.sql` | ⏳ **Run this now** |
-| 2c. Cash handed over + change on receipts | `supabase/patch_cash_change.sql` | ⏳ **Run this now** |
+| 2b. Pick existing customers on New sale | `supabase/patch_customer_pick.sql` | ✅ Done |
+| 2c. Cash handed over + change on receipts | `supabase/patch_cash_change.sql` | ✅ Done |
+| 2d. Equal logins + "Clear all data" | `supabase/patch_logins_and_reset.sql` | ⏳ **Run this now** |
 | 3. Turn email confirmation back on | Authentication settings | ⏳ Before real customers sign up |
 | 4. Allow the password-reset link | Authentication → URL Configuration | ⏳ Recommended |
 | Demo data (optional) | `seed_demo.sql` / `remove_demo.sql` | Your call |
@@ -35,6 +36,21 @@ Additive, no data changes, safe to run twice. The last line prints `staff_resolv
 `supabase/patch_cash_change.sql` stores the cash a customer handed over and the change given, so receipts (printed and online) show them. It adds two columns to payments and one small function. It's additive and safe to run twice. The last query lists `tendered` and `change_given`.
 
 Until it's run, checkout still shows the change on screen, but receipts only show the payment amount.
+
+## 2d. Logins + clear-all patch (run once)
+
+`supabase/patch_logins_and_reset.sql`:
+- makes every staff login a full admin with the same access, and keeps per-person PINs switched off however many logins there are;
+- adds the two Supabase-only functions for managing logins (below);
+- adds the function behind **Settings → Clear all data** in the staff app.
+
+Running it doesn't delete anything; the wipe only happens when someone presses the button and types the confirmation. The last query lists everyone who can log in.
+
+### Adding a staff login (Supabase only)
+1. **Authentication → Users → Add user → Create new user.** Enter their email and password, and tick **Auto Confirm User**.
+2. **SQL Editor:** `select grant_staff_access('their@email.com', 'Their Name');` then **Run**.
+
+To take access away: `select remove_staff_access('their@email.com');`. It won't remove the last login. Neither app can give access to anyone; the staff app only shows who has access (Settings → Logins), with these lines ready to copy.
 
 ## 3. Email confirmation — turn it back on before going public
 
