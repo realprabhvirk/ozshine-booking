@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { callRpc } from "@/lib/rpc";
 import type { Channel, OutboxStatus, Segment } from "@/lib/messaging";
-import { announceChange } from "./actions";
+import { announceChange, kickOutbox } from "./actions";
 
 export type OutboxRow = {
   id: string;
@@ -115,7 +115,7 @@ export async function fetchCampaigns(supabase: SupabaseClient): Promise<Campaign
 }
 
 export function retryMessage(supabase: SupabaseClient, id: string) {
-  return callRpc<void>(supabase, "retry_outbox_message", { p_id: id, p_actor: null });
+  return callRpc<void>(supabase, "retry_outbox_message", { p_id: id, p_actor: null }).finally(kickOutbox);
 }
 
 export async function sendOneOff(supabase: SupabaseClient, customerId: string, channel: Channel, subject: string | null, body: string) {
@@ -130,12 +130,12 @@ export function previewSegment(supabase: SupabaseClient, segment: Segment & { ch
 }
 
 export function sendCampaign(supabase: SupabaseClient, payload: { name: string; channel: Channel; subject: string | null; body: string; segment: Segment }) {
-  return callRpc<{ campaign_id: string; stats: Partial<Record<OutboxStatus, number>> }>(supabase, "send_campaign", { payload, p_actor: null });
+  return callRpc<{ campaign_id: string; stats: Partial<Record<OutboxStatus, number>> }>(supabase, "send_campaign", { payload, p_actor: null }).finally(kickOutbox);
 }
 
 export type AutomationRun = { reminders: number; review_requests: number; winbacks: number; due_sent: number; rewards_expired: number; ran_at: string };
 export function runAutomations(supabase: SupabaseClient) {
-  return callRpc<AutomationRun>(supabase, "run_automations");
+  return callRpc<AutomationRun>(supabase, "run_automations").finally(kickOutbox);
 }
 
 export function saveAutomation(supabase: SupabaseClient, key: string, enabled: boolean | null, config: Record<string, unknown> | null) {

@@ -613,6 +613,36 @@ await test("cron key: wrong key refused, generated key works", async () => {
   const h = (await db.query(`select cron_key_hash from settings`)).rows[0].cron_key_hash;
   ok(h !== k && h.startsWith("$2"), "stored hashed");
 });
+await test("live sending: a claimed message is leased, so two runs never send it twice", async () => {
+  const k = await staffCall(U.admin, `select generate_cron_key($1)`, [adminTok]);
+  await db.exec(`update settings set message_provider = 'live'`);
+  try {
+    const cust = (await db.query(`select id from customers where phone = '0400000210'`)).rows[0].id;
+    await db.query(`insert into message_outbox (customer_id, channel, template_key, to_address, subject, body, status, scheduled_for)
+      values ($1, 'email', 'custom', 'tom@example.test', 'Lease test', 'Body', 'queued', now())`, [cust]);
+    await db.query(`insert into message_outbox (customer_id, channel, template_key, to_address, body, status, scheduled_for)
+      values ($1, 'sms', 'custom', '0400000210', 'Lease SMS', 'queued', now())`, [cust]);
+    const claim = () => as(db, "anon", null, () => rpc(db, `select claim_outbox_batch_with_key($1, 50)`, [k]));
+    const first = await claim();
+    ok(first.length >= 2, "claimed: " + first.length);
+    eq(await claim(), [], "second run gets nothing while the first holds the lease");
+    const email = first.find((m) => m.channel === "email");
+    const sms = first.find((m) => m.channel === "sms");
+    await as(db, "anon", null, () => rpc(db, `select report_outbox_result_with_key($1, $2, true, 'resend', 're-1', null)`, [k, email.id]));
+    await as(db, "anon", null, () => rpc(db, `select simulate_outbox_message_with_key($1, $2)`, [k, sms.id]));
+    const rows = (await db.query(`select id, status, provider from message_outbox where id = any($1::uuid[])`, [[email.id, sms.id]])).rows;
+    eq(rows.find((r) => r.id === email.id).status, "sent");
+    eq([rows.find((r) => r.id === sms.id).status, rows.find((r) => r.id === sms.id).provider], ["simulated_sent", "demo"]);
+    await expectError(as(db, "anon", null, () => rpc(db, `select simulate_outbox_message_with_key('nope', $1)`, [sms.id])), "INVALID_KEY");
+    // A run that died: once the lease is up, the message is claimed again.
+    await db.exec(`update message_outbox set scheduled_for = now() - interval '1 minute' where status = 'queued'`);
+    const again = await claim();
+    eq(again.length, first.length - 2, "only the unfinished ones come back");
+  } finally {
+    await db.exec(`update message_outbox set status = 'simulated_sent', provider = 'demo' where status = 'queued'`);
+    await db.exec(`update settings set message_provider = 'demo'`);
+  }
+});
 await test("campaign: segment preview + send (opt-outs skipped, footer added)", async () => {
   const p = await staffCall(U.staff, `select preview_campaign_segment('{"min_visits":1}'::jsonb)`);
   ok(p.count >= 1 && p.sample.length >= 1, JSON.stringify(p));
@@ -857,7 +887,7 @@ await test("no function in public is executable by anon unless deliberately gran
     "get_available_slots", "validate_promo", "create_public_booking", "get_booking_by_token", "cancel_booking_by_token",
     "reschedule_booking_by_token", "submit_feedback_by_token", "join_waitlist", "get_published_testimonials",
     "get_receipt_by_token", "get_display_board", "run_automations_with_key", "claim_outbox_batch_with_key",
-    "report_outbox_result_with_key"]);
+    "report_outbox_result_with_key", "simulate_outbox_message_with_key"]);
   const extra = granted.filter((g) => !allowed.has(g));
   eq(extra, [], "unexpected anon-executable functions");
 });

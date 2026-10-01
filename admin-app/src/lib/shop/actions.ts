@@ -13,6 +13,20 @@ const ACTOR = null;
 export const BOOKINGS_CHANGED = "oz:bookings-changed";
 export function announceChange() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(BOOKINGS_CHANGED));
+  kickOutbox();
+}
+
+// Live mode: ask the server to send whatever this action queued (confirmation,
+// "car's ready", receipt…) right now instead of at the 7am daily job. Bursts
+// collapse into one call; in Demo mode the server finds nothing to send.
+let kickTimer: ReturnType<typeof setTimeout> | null = null;
+export function kickOutbox() {
+  if (typeof window === "undefined") return;
+  if (kickTimer) clearTimeout(kickTimer);
+  kickTimer = setTimeout(() => {
+    kickTimer = null;
+    fetch("/api/messages/flush", { method: "POST", keepalive: true }).catch(() => {});
+  }, 1500);
 }
 
 async function run<T>(p: Promise<T>): Promise<T> {

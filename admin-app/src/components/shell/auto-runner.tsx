@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useShop } from "@/components/shop-context";
 import { runAutomations } from "@/lib/shop/messages";
+import { kickOutbox } from "@/lib/shop/actions";
 
 const KEY = "oz-automations-last-run";
 const EVERY = 60 * 60 * 1000;
@@ -15,6 +16,9 @@ export function AutoRunner() {
   const { supabase } = useShop();
   useEffect(() => {
     const tick = () => {
+      // Live mode: anything still waiting (a big campaign, a retry) keeps
+      // draining every few minutes while a tablet is open.
+      kickOutbox();
       let last = 0;
       try {
         last = Number(localStorage.getItem(KEY) ?? 0);

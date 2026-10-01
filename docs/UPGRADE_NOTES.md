@@ -104,11 +104,20 @@ Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are required
 
 | Variable | What it does | If it's missing |
 |---|---|---|
-| `CRON_SECRET` | Lets the daily 7am job run. Must match the key made in Messages → Setup. | Reminders and feedback requests are still checked hourly while the staff app is open. |
-| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` | Real SMS | SMS stays simulated. |
-| `RESEND_API_KEY`, `RESEND_FROM` | Real email | Email stays simulated. |
+| `CRON_SECRET` | The sending key. Must match the key made in Messages → Setup. Used by the instant send and the daily 7am job. | Live sending can't be switched on. Reminders and feedback requests are still checked hourly while the staff app is open. |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` | Real SMS | SMS stays simulated (also in Live mode). |
+| `RESEND_API_KEY` | Real email | Email stays simulated (also in Live mode). |
+| `RESEND_FROM` | Email sender | Defaults to `OzShine Beenleigh <beenleigh@ozshinecarwash.com.au>`; the domain must be verified in Resend. |
+| `NEXT_PUBLIC_ADMIN_APP_URL` (booking site) | Where the booking site pings the instant send | Defaults to `https://ozshine-admin.vercel.app`. |
 
-Real sending also needs **Messages → Setup → Switch to live sending**. That button stays greyed out until a provider is configured.
+Real sending also needs **Messages → Setup → Switch to live sending**. That button stays greyed out until a provider is configured **and** the sending key is in place.
+
+### How live sending works (final sweep)
+
+- **Instant.** After any staff action the staff app calls `/api/messages/flush`; after a customer books, cancels or moves a booking, the booking site does too. The route sends whatever is already queued and due, using `CRON_SECRET` server-side. It takes no input and is open on purpose (a no-op in Demo mode). The 7am daily job and a 5-minute tick while a tablet is open pick up anything left (scheduled reminders, big campaigns, retries).
+- **Never twice.** `claim_outbox_batch_with_key` leases each message for 10 minutes and skips rows another run holds (`for update skip locked`). Resend calls carry an idempotency key (the outbox id). A text that times out is marked failed rather than retried, so staff decide on a resend.
+- **One provider only.** In Live mode a message for a channel with no provider is marked "Sent (demo)" (`simulate_outbox_message_with_key`) instead of failing.
+- **Rate limit.** Emails are spaced about 0.5 s apart (Resend allows about 2 per second). A 429 or 5xx leaves the message queued for the next run.
 
 ## Known limitations
 
