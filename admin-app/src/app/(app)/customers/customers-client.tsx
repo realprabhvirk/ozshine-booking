@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, Crown, Download, Gift, Search, Upload, UserP
 import { cn } from "@/lib/core/cn";
 import { formatCents, toCents } from "@/lib/core/money";
 import { formatPhone } from "@/lib/core/phone";
-import { formatDate, formatRelative, shopDateOf } from "@/lib/core/time";
+import { formatDate, formatRelative, shopDateOf, todayISO } from "@/lib/core/time";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Stat } from "@/components/ui/card";
@@ -78,7 +78,7 @@ export function CustomersClient({ q, filter, sort, tag, page, rows, total, stats
         all.push(...r.rows);
         if (r.rows.length < 500) break;
       }
-      downloadCsv(`ozshine-customers-${new Date().toISOString().slice(0, 10)}.csv`, [
+      downloadCsv(`ozshine-customers-${todayISO()}.csv`, [
         ["Name", "Phone", "Email", "Regos", "Tags", "VIP", "Marketing OK", "Visits", "Lifetime spend", "Last visit", "Owing", "Customer since"],
         ...all.map((c) => [
           c.name,
