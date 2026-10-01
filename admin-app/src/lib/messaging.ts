@@ -13,6 +13,16 @@ export const OUTBOX_STATUS: Record<OutboxStatus, { label: string; tone: "ok" | "
   skipped_no_contact: { label: "No contact", tone: "warn" },
 };
 
+// Badge for one message. In Live mode, a text with no SMS account set up is
+// stored as simulated_sent with provider "sms_off": say so plainly instead of
+// "Sent (demo)", which reads as if the shop were still in demo mode.
+export function outboxBadge(status: OutboxStatus, provider: string | null) {
+  if (status === "simulated_sent" && (provider === "sms_off" || provider === "email_off")) {
+    return { label: provider === "sms_off" ? "Not sent · SMS off" : "Not sent · email off", tone: "neutral" as const };
+  }
+  return OUTBOX_STATUS[status];
+}
+
 // Placeholders the database fills in (see render_template / booking_message_vars
 // in upgrade_v2.sql). The sample values drive the live preview in the editor.
 export const PLACEHOLDERS: Array<{ key: string; label: string; sample: string }> = [

@@ -157,7 +157,7 @@ await test("seeds are not duplicated by the second run", async () => {
     (select count(*) from addons)::int addons, (select count(*) from loyalty_rules)::int rules,
     (select count(*) from automations)::int autos, (select count(*) from message_templates)::int templates,
     (select count(*) from customers where is_walkin_placeholder)::int walkin`)).rows[0];
-  eq(counts, { settings: 1, bays: 3, addons: 6, rules: 2, autos: 6, templates: 18, walkin: 1 });
+  eq(counts, { settings: 1, bays: 3, addons: 6, rules: 2, autos: 6, templates: 19, walkin: 1 });
 });
 await test("services got durations and metadata; custom edits are preserved on re-run", async () => {
   await db.exec(`update services set tagline = 'Owner edited' where name = 'OzShine Wash'`);
@@ -587,6 +587,7 @@ await test("messages: received/approved/ready are queued once each (demo = simul
   ok(keys.includes("booking_received:email:simulated_sent"), keys.join(","));
   ok(keys.includes("booking_approved:sms:simulated_sent"), keys.join(","));
   ok(keys.includes("ready_for_pickup:sms:simulated_sent"), keys.join(","));
+  ok(keys.includes("ready_for_pickup:email:simulated_sent"), "ready email too: " + keys.join(","));
   eq(new Set(keys).size, keys.length, "no duplicates");
   const sms = m.find((x) => x.template_key === "booking_approved" && x.channel === "sms").body;
   ok(sms.includes("Jess") && sms.includes("https://ozshine.example/manage/"), sms);
@@ -632,7 +633,7 @@ await test("live sending: a claimed message is leased, so two runs never send it
     await as(db, "anon", null, () => rpc(db, `select simulate_outbox_message_with_key($1, $2)`, [k, sms.id]));
     const rows = (await db.query(`select id, status, provider from message_outbox where id = any($1::uuid[])`, [[email.id, sms.id]])).rows;
     eq(rows.find((r) => r.id === email.id).status, "sent");
-    eq([rows.find((r) => r.id === sms.id).status, rows.find((r) => r.id === sms.id).provider], ["simulated_sent", "demo"]);
+    eq([rows.find((r) => r.id === sms.id).status, rows.find((r) => r.id === sms.id).provider], ["simulated_sent", "sms_off"]);
     await expectError(as(db, "anon", null, () => rpc(db, `select simulate_outbox_message_with_key('nope', $1)`, [sms.id])), "INVALID_KEY");
     // A run that died: once the lease is up, the message is claimed again.
     await db.exec(`update message_outbox set scheduled_for = now() - interval '1 minute' where status = 'queued'`);

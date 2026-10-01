@@ -116,7 +116,9 @@ Real sending also needs **Messages → Setup → Switch to live sending**. That 
 
 - **Instant.** After any staff action the staff app calls `/api/messages/flush`; after a customer books, cancels or moves a booking, the booking site does too. The route sends whatever is already queued and due, using `CRON_SECRET` server-side. It takes no input and is open on purpose (a no-op in Demo mode). The 7am daily job and a 5-minute tick while a tablet is open pick up anything left (scheduled reminders, big campaigns, retries).
 - **Never twice.** `claim_outbox_batch_with_key` leases each message for 10 minutes and skips rows another run holds (`for update skip locked`). Resend calls carry an idempotency key (the outbox id). A text that times out is marked failed rather than retried, so staff decide on a resend.
-- **One provider only.** In Live mode a message for a channel with no provider is marked "Sent (demo)" (`simulate_outbox_message_with_key`) instead of failing.
+- **One provider only.** In Live mode a message for a channel with no provider isn't sent and isn't failed: it's stored as `simulated_sent` with provider `sms_off`/`email_off` (`simulate_outbox_message_with_key`, patch_messaging_live_2) and shown as "Not sent · SMS off".
+- **Booking site calls go through its own server.** The booking pages call the public booking functions via `customer-app/src/app/api/rpc/[fn]` (allow-listed, passes the signed-in customer's token through) instead of straight from the browser to Supabase. A customer reported "Can't reach the server" at the time picker while the database itself was answering normally: the browser → Supabase hop was the weak link. Lookups (times, promo codes) retry twice; anything that changes a booking is sent once so it can never double-book.
+- **Email on every New sale** (walk-ins too), and a "ready for pickup" email template, so email-only customers hear their car is ready.
 - **Rate limit.** Emails are spaced about 0.5 s apart (Resend allows about 2 per second). A 429 or 5xx leaves the message queued for the next run.
 
 ## Known limitations

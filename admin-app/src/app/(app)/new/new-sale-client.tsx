@@ -568,11 +568,22 @@ export function NewSaleClient({
                   <Input autoComplete="off" value={makeModel} onChange={(e) => setMakeModel(e.target.value)} placeholder="White Hilux" />
                 </Field>
               </div>
-              {mode === "later" && (
-                <Field label="Email" optional hint="For the confirmation" error={errors.email}>
-                  <Input type="email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} />
-                </Field>
-              )}
+              <Field
+                label="Email"
+                optional
+                hint={
+                  customer?.email
+                    ? picked
+                      ? "On file. To change it, edit the customer."
+                      : `On file: ${customer.email}. To change it, edit the customer.`
+                    : mode === "later"
+                      ? "For the confirmation and updates by email"
+                      : "For “car's ready” and the receipt by email"
+                }
+                error={errors.email}
+              >
+                <Input type="email" inputMode="email" autoComplete="off" value={email} readOnly={!!picked?.email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" />
+              </Field>
               <Field label="Staff notes" optional>
                 <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} />
               </Field>

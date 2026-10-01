@@ -7,7 +7,7 @@ import { ChevronDown, Mail, MessageSquare, RefreshCw, RotateCcw, Search } from "
 import { cn } from "@/lib/core/cn";
 import { formatDateTime } from "@/lib/core/time";
 import { formatPhone } from "@/lib/core/phone";
-import { OUTBOX_STATUS, smsSegments, type OutboxStatus } from "@/lib/messaging";
+import { outboxBadge, smsSegments, type OutboxStatus } from "@/lib/messaging";
 import { OUTBOX_PAGE, retryMessage, type OutboxFilter, type OutboxRow } from "@/lib/shop/messages";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -94,7 +94,7 @@ export function OutboxClient({
                 on && "ring-2 ring-accent",
               )}
             >
-              <p className="text-sm font-medium text-fg-muted">{t.label}</p>
+              <p className="text-sm font-medium text-fg-muted">{live && t.key === "simulated_sent" ? "Not sent (demo / SMS off)" : t.label}</p>
               <p className={cn("mt-1 text-2xl font-bold tabular-nums", t.key === "failed" && n > 0 && "text-bad-ink")}>{n.toLocaleString("en-AU")}</p>
               <p className="text-xs text-fg-faint">last 30 days</p>
             </Link>
@@ -127,7 +127,7 @@ export function OutboxClient({
         ) : (
           <ul className="divide-y divide-line">
             {rows.map((m) => {
-              const st = OUTBOX_STATUS[m.status];
+              const st = outboxBadge(m.status, m.provider);
               const isOpen = open === m.id;
               const seg = m.channel === "sms" ? smsSegments(m.body) : null;
               return (
@@ -160,7 +160,7 @@ export function OutboxClient({
                           m.campaign ? `Campaign: ${m.campaign.name}` : null,
                           seg ? `${seg.length} characters · ${seg.segments} SMS part${seg.segments === 1 ? "" : "s"}` : null,
                           m.sent_at ? `Sent ${formatDateTime(m.sent_at)}` : m.status === "queued" ? `Due ${formatDateTime(m.scheduled_for)}` : null,
-                          m.provider && m.provider !== "demo" ? `via ${m.provider}` : null,
+                          m.provider && !["demo", "sms_off", "email_off"].includes(m.provider) ? `via ${m.provider}` : null,
                         ]
                           .filter(Boolean)
                           .join(" · ")}

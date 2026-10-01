@@ -16,7 +16,8 @@ How to copy a SQL file: open it on GitHub → click **Copy raw file** (the two-s
 | 2c. Cash handed over + change on receipts | `supabase/patch_cash_change.sql` | ✅ Done |
 | 2d. Equal logins + "Clear all data" | `supabase/patch_logins_and_reset.sql` | ✅ Done |
 | 2e. Staff never need email verification | `supabase/patch_staff_no_email_check.sql` | ✅ Done |
-| 2f. Instant, never-twice live sending | `supabase/patch_messaging_live.sql` | ⏳ **Run this now** |
+| 2f. Instant, never-twice live sending | `supabase/patch_messaging_live.sql` | ✅ Done |
+| 2g. "Car's ready" email + "SMS off" label | `supabase/patch_messaging_live_2.sql` | ⏳ **Run this now** |
 | 3. Turn email confirmation back on | Authentication settings | ⏳ Before real customers sign up |
 | 4. Allow the password-reset link | Authentication → URL Configuration | ⏳ Recommended |
 
@@ -62,6 +63,10 @@ To take access away: `select remove_staff_access('their@email.com');`. It won't 
 - with Live switched on but only email set up, texts are marked "Sent (demo)" instead of failing.
 
 No table or data changes; safe to run twice. Run it before switching Messages → Setup to Live (full steps: `instructions/README.md` → "Turning on real emails").
+
+## 2g. Email-updates patch (run once, after 2f)
+
+`supabase/patch_messaging_live_2.sql` adds a "ready for pickup" email (it was text-only) and makes texts that can't be sent in Live mode (no SMS account) show as "Not sent · SMS off" instead of "Sent (demo)". It never overwrites a template you've edited and changes no data.
 
 ## 3. Email confirmation — turn it back on before going public
 
