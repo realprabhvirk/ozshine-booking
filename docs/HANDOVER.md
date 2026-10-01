@@ -49,7 +49,7 @@ Leave Build Command, Output Directory and Install Command on their defaults. If 
 | **Reports** | Revenue, cars, services, extras, busiest hours, payment methods, loyalty, promos, CSV export. |
 | **Settings** | Business and ABN, hours and booking rules, services and prices, extras and bays, closures, promos/loyalty/vouchers, Shop TV, audit log. |
 
-The shop runs on **one owner login** (admin). Everything done in the app is recorded against it. If staff logins are ever added, per-person PINs switch on automatically.
+Every login has the same full access. Logins are added or removed only in Supabase (see `docs/SUPABASE_STEPS.md`), and each change is recorded against the login that made it.
 
 ## How it's built (for the next developer)
 
@@ -58,7 +58,7 @@ The shop runs on **one owner login** (admin). Everything done in the app is reco
 - **Errors:** functions raise `oz_raise(CODE, message)`, and `lib/core/errors.ts` turns codes into friendly text.
 - **Live updates:** Supabase Realtime on bookings, invoices and payments, plus a 60-second backup poll. The public booking page and the TV poll instead, since the public role can't subscribe to private tables.
 - **Messages:** everything goes to `message_outbox`. Demo mode marks messages "simulated". In live mode the daily cron (`admin-app/src/app/api/cron/messages`, `vercel.json`) hands them to Twilio/Resend. It's authenticated by `CRON_SECRET`, which the database checks against a bcrypt hash, so **no service-role key is used anywhere**.
-- **Tests:** `supabase/tests` (93, real SQL in PGlite), plus `npm test` in each app. Run `npm run typecheck && npm run lint && npm run build` in an app before a PR.
+- **Tests:** `supabase/tests` (94, real SQL in PGlite), plus `npm test` in each app. Run `npm run typecheck && npm run lint && npm run build` in an app before a PR.
 - **Env vars:** see the table in `docs/UPGRADE_NOTES.md`. Only the Supabase URL and anon key are required.
 
 ## Known limitations

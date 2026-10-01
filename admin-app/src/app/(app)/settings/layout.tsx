@@ -9,6 +9,8 @@ const TABS = [
   { href: "/settings/rewards", label: "Promos & loyalty" },
   { href: "/settings/tv", label: "Shop TV" },
   { href: "/settings/audit", label: "Audit log" },
+  { href: "/settings/logins", label: "Logins" },
+  { href: "/settings/reset", label: "Clear all data" },
 ];
 
 export default function SettingsLayout({ children }: LayoutProps<"/settings">) {

@@ -986,13 +986,47 @@ await test("no PIN needed: walk-in, invoice, payment and settings work with no s
   const owner = (await solo.query(`select id from staff`)).rows[0].id;
   eq([b.status, b.processed_by_staff_id], ["completed", owner], "attributed to the owner");
 });
-await test("adding a second staff member switches PINs on", async () => {
-  await solo.exec(`insert into auth.users (id, email) values ('00000000-0000-4000-8000-0000000000ab', 'extra@ozshine.test');
-    insert into staff (auth_user_id, location_id, name, role) select '00000000-0000-4000-8000-0000000000ab', id, 'Extra', 'staff' from locations;`);
-  eq(await soloCall(`select pin_mode_enabled()`), true);
-  await expectError(soloCall(`select admin_save('bays', null, '{"name":"Bay 5"}'::jsonb, null)`), "PIN_REQUIRED");
-  await solo.exec(`update staff set active = false where name = 'Extra'`);
-  await soloCall(`select admin_save('bays', null, '{"name":"Bay 5"}'::jsonb, null)`);
+await test("more logins stay PIN-free, equal admins, each recorded as themselves", async () => {
+  const EXTRA = "00000000-0000-4000-8000-0000000000ab";
+  await solo.exec(`insert into auth.users (id, email) values ('${EXTRA}', 'Extra@OzShine.test')`);
+  // Only the owner, in the SQL Editor, can grant access — never the apps.
+  await expectError(soloCall(`select grant_staff_access('extra@ozshine.test', 'Extra')`), /permission denied/);
+  await expectError(solo.query(`select grant_staff_access('nobody@ozshine.test')`), /No Supabase account/);
+  eq((await solo.query(`select grant_staff_access('extra@ozshine.test', 'Extra') r`)).rows[0].r.startsWith("Done"), true);
+  const ex = (await solo.query(`select id, role, active from staff where auth_user_id = $1`, [EXTRA])).rows[0];
+  eq([ex.role, ex.active], ["admin", true]);
+  eq(await soloCall(`select pin_mode_enabled()`), false);
+  const extraCall = (sql, params) => as(solo, "authenticated", EXTRA, () => rpc(solo, sql, params));
+  await extraCall(`select admin_save('bays', null, '{"name":"Bay 5"}'::jsonb, null)`);
+  eq((await solo.query(`select actor_staff_id from audit_log where action = 'bays.create' order by created_at desc limit 1`)).rows[0].actor_staff_id, ex.id, "recorded as the second login");
+  const svc = (await solo.query(`select id from services where name = 'OzShine Wash'`)).rows[0].id;
+  await extraCall(`select create_walkin_order($1::jsonb, null)`, [JSON.stringify({ vehicle_type: "sedan", service_id: svc })]);
+  // Removing access: never the last login.
+  eq((await solo.query(`select remove_staff_access('extra@ozshine.test') r`)).rows[0].r.startsWith("Access removed"), true);
+  await expectError(solo.query(`select remove_staff_access('owner@ozshine.test')`), /last login/);
+  await expectError(extraCall(`select admin_save('bays', null, '{"name":"Bay 6"}'::jsonb, null)`), /NOT_STAFF|not staff|staff/i);
+});
+await test("clear all data wipes bookings/customers/money, keeps the setup and logins", async () => {
+  const svc = (await solo.query(`select id from services where name = 'OzShine Wash'`)).rows[0].id;
+  await solo.exec(`insert into auth.users (id, email) values ('00000000-0000-4000-8000-0000000000cd', 'customer@example.com')`);
+  const keepBefore = await solo.query(`select (select count(*) from services) s, (select count(*) from addons) a, (select count(*) from bays) b,
+    (select count(*) from staff) st, (select count(*) from message_templates) t, (select count(*) from settings) se`);
+  await expectError(soloCall(`select reset_shop_data('delete', true, null)`), "INVALID_INPUT");
+  const r = await soloCall(`select reset_shop_data('DELETE EVERYTHING', true, null)`);
+  ok(Number(r.bookings) > 0, "reported what it removed");
+  eq(Number(r.customer_logins), 1, "customer login removed, staff kept");
+  const after = (await solo.query(`select (select count(*) from bookings) b, (select count(*) from invoices) i, (select count(*) from payments) p,
+    (select count(*) from customers) c, (select count(*) from customers where is_walkin_placeholder) w, (select count(*) from auth.users) u,
+    (select last_number from invoice_counters limit 1) n, (select count(*) from audit_log where action = 'data.reset') a`)).rows[0];
+  eq([Number(after.b), Number(after.i), Number(after.p), Number(after.c), Number(after.w), Number(after.a)], [0, 0, 0, 1, 1, 1]);
+  eq(Number(after.n ?? 0), 0, "invoice numbers restart");
+  const keepAfter = await solo.query(`select (select count(*) from services) s, (select count(*) from addons) a, (select count(*) from bays) b,
+    (select count(*) from staff) st, (select count(*) from message_templates) t, (select count(*) from settings) se`);
+  eq(keepAfter.rows[0], keepBefore.rows[0], "setup and logins untouched");
+  // Still fully usable afterwards.
+  const w = await soloCall(`select create_walkin_order($1::jsonb, null)`, [JSON.stringify({ vehicle_type: "sedan", service_id: svc })]);
+  const inv = await soloCall(`select issue_invoice($1, null)`, [w.booking_id]);
+  ok(inv, "invoices work after reset");
 });
 
 // ===========================================================================

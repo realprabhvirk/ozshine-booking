@@ -27,7 +27,7 @@ ozshine-booking/
     upgrade_v2.sql  <- additive, idempotent upgrade the owner pasted into the LIVE project (source of truth)
     schema.sql      <- generated (supabase/tests: npm run build-schema) — brand-new empty project only
     post_merge_hardening.sql / rollback_hardening.sql, seed_demo.sql / remove_demo.sql
-    tests/          <- PGlite test suite (93 tests): npm test
+    tests/          <- PGlite test suite (94 tests): npm test
   docs/             <- UPGRADE_NOTES, HANDOVER, TEST_PLAN, SUPABASE_STEPS
   CLAUDE.md         <- this file
 ```
@@ -42,7 +42,7 @@ Database rules (Supabase — the owner runs SQL himself via the dashboard, non-t
 * Errors: functions raise `oz_raise(CODE, message)`; `lib/core/errors.ts` maps codes to friendly text.
 * Money in integer cents in the apps; GST = total ÷ 11 (prices include GST). Brisbane time everywhere.
 * Customer matching: by phone (normalised `04xxxxxxxx`), done server-side in `create_public_booking`.
-* Solo mode: the shop runs on ONE owner login (admin). While there's a single active staff login, everything is attributed to it and there is no PIN UI; PINs switch on automatically if more staff are added.
+* Logins: every staff login is a full admin with identical access; PINs stay off (`pin_mode_enabled()` is always false); actions are attributed to the login itself. Logins are created/granted ONLY by the owner in Supabase (`grant_staff_access` / `remove_staff_access`, not callable from the apps) — never add in-app account creation.
 * Supabase Auth email confirmation is OFF for the demo — flag clearly in any PR touching auth that it must be turned back on before real customers sign up.
 
 Explicitly out of scope — don't build these, don't suggest them unprompted
