@@ -5262,8 +5262,9 @@ end;
 $$;
 
 -- Live mode with only one provider set up (e.g. email through Resend but no
--- SMS account yet): messages for the channel that isn't set up are marked
--- "Sent (demo)" instead of failing, exactly as in demo mode.
+-- SMS account yet): messages for the channel that isn't set up aren't sent.
+-- They're marked with provider 'sms_off' / 'email_off', which the staff app
+-- shows as "Not sent · SMS off" (not "Sent (demo)", which reads as demo mode).
 create or replace function public.simulate_outbox_message_with_key(p_key text, p_id uuid)
 returns void
 language plpgsql
@@ -5277,7 +5278,7 @@ begin
   if h is null or coalesce(p_key, '') = '' or extensions.crypt(p_key, h) <> h then
     perform oz_raise('INVALID_KEY', 'Cron key not recognised.');
   end if;
-  update message_outbox set status = 'simulated_sent', provider = 'demo', sent_at = now(), error = null
+  update message_outbox set status = 'simulated_sent', provider = channel || '_off', sent_at = now(), error = null
   where id = p_id and status = 'queued';
 end;
 $$;
@@ -6055,6 +6056,8 @@ insert into message_templates (key, channel, name, category, subject, body) valu
    E'Hi {{first_name}},\n\nJust a reminder that {{rego}} is booked in for {{service}} on {{date}} at {{time}}.\n\nRunning late or need to move it? {{manage_url}}\n\nThe OzShine team'),
   ('ready_for_pickup', 'sms', 'Ready for pickup', 'transactional', null,
    'Good news {{first_name}} — {{rego}} is ready for pickup at OzShine Beenleigh. See you soon!'),
+  ('ready_for_pickup', 'email', 'Ready for pickup', 'transactional', '{{rego}} is ready for pickup',
+   E'Hi {{first_name}},\n\nGood news: {{rego}} is ready for pickup at OzShine Beenleigh.\n\nSee you soon,\nThe OzShine team'),
   ('receipt', 'sms', 'Receipt', 'transactional', null,
    'Thanks {{first_name}}! Your OzShine receipt {{invoice_number}} (${{amount}}): {{receipt_url}}'),
   ('receipt', 'email', 'Receipt', 'transactional', 'Your OzShine receipt {{invoice_number}}',

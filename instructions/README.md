@@ -14,7 +14,8 @@ Everything you need to run or set up yourself, in plain steps. Nothing here need
 | 4 | `supabase/patch_cash_change.sql` | Cash handed over + change printed on receipts | ✅ Done |
 | 5 | `supabase/patch_logins_and_reset.sql` | Equal logins + Settings → Clear all data | ✅ Done |
 | 6 | `supabase/patch_staff_no_email_check.sql` | Staff logins never need email verification | ✅ Done |
-| 7 | `supabase/patch_messaging_live.sql` | Real emails go out instantly, never twice; texts stay demo until SMS is set up | ⏳ Run this |
+| 7 | `supabase/patch_messaging_live.sql` | Real emails go out instantly, never twice; texts stay demo until SMS is set up | ✅ Done |
+| 8 | `supabase/patch_messaging_live_2.sql` | "Car's ready" by email too; unsent texts say "SMS off" instead of "Sent (demo)" | ⏳ Run this |
 
 New patches will be added to this table with ⏳ when there's something to run.
 
@@ -56,7 +57,7 @@ Texts stay "Sent (demo)" until an SMS account is added later; only emails go out
 1. **Resend → Domains → Add domain** → `ozshinecarwash.com.au`. Resend shows a few DNS records: add them where the domain is managed (whoever hosts ozshinecarwash.com.au). Wait until Resend shows the domain as **Verified**.
 2. **Vercel → ozshine-admin (staff app) → Settings → Environment Variables**: `RESEND_API_KEY` is already there. Nothing else needed for email (the sender defaults to `OzShine Beenleigh <beenleigh@ozshinecarwash.com.au>`).
 3. **Staff app → Messages → Setup → Daily job → Make a key** → Copy. In Vercel (staff app project) add `CRON_SECRET` with that key (Production) → **Deployments → ⋯ → Redeploy**.
-4. Run patch **#7** above in Supabase.
+4. Run patches **#7** and **#8** above in Supabase.
 5. **Staff app → Messages → Setup → Switch to live sending.**
 6. Test: make a booking on the booking site with your own email. The confirmation should land within a few seconds and show as "Sent" (not demo) in Messages.
 

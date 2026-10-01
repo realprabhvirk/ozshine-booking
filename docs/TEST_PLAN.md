@@ -74,7 +74,7 @@ Use two browser tabs side by side: the **booking site** and the **staff app** (l
 | What | Where | Count |
 |---|---|---|
 | Database: upgrade of a copy of the live V1 database (run twice), fresh-install parity, every server function, a permissions matrix (public / customer / staff / admin / deactivated staff), hardening + rollback, live-sending lease, and a contract check of every table/column/RPC the two apps use | `supabase/tests` (`npm test`) | 89 |
-| Staff app helpers: money/GST, phone/rego, dates, CSV import/export safety, ABN, QLD holidays, message length/encoding, templates, paging past the 1,000-row cap, live email sending | `admin-app` (`npm test`) | 26 |
+| Staff app helpers: money/GST, phone/rego, dates, CSV import/export safety, ABN, QLD holidays, message length/encoding, templates, paging past the 1,000-row cap, live email sending | `admin-app` (`npm test`) | 27 |
 | Booking site helpers | `customer-app` (`npm test`) | 7 |
 | Typecheck, lint, production build | both apps | ✔ |
 

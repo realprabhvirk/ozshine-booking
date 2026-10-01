@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cleanSegment, describeSegment, renderTemplate, sampleVars, smsSegments, toE164, unknownPlaceholders } from "./messaging.ts";
+import { cleanSegment, outboxBadge, describeSegment, renderTemplate, sampleVars, smsSegments, toE164, unknownPlaceholders } from "./messaging.ts";
 
 test("renderTemplate matches the database: fills known keys, blanks unknown ones", () => {
   assert.equal(renderTemplate("Hi {{first_name}}, ref {{reference}} {{nope}}!", { first_name: "Jess", reference: "OZ-7K3P" }), "Hi Jess, ref OZ-7K3P !");
@@ -33,4 +33,10 @@ test("segments are cleaned and described", () => {
   assert.deepEqual(cleanSegment({ min_visits: 0, lapsed_days: 60, tag: " Fleet ", vip_only: false }), { lapsed_days: 60, tag: "fleet" });
   assert.equal(describeSegment({}), "Everyone who's opted in");
   assert.equal(describeSegment({ min_visits: 6, lapsed_days: 60 }), "6+ visits, not seen in 60 days");
+});
+
+test("live mode without an SMS account says 'SMS off', not 'Sent (demo)'", () => {
+  assert.equal(outboxBadge("simulated_sent", "sms_off").label, "Not sent · SMS off");
+  assert.equal(outboxBadge("simulated_sent", "demo").label, "Sent (demo)");
+  assert.equal(outboxBadge("sent", "resend").label, "Sent");
 });
