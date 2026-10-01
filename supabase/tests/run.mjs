@@ -994,6 +994,7 @@ await test("more logins stay PIN-free, equal admins, each recorded as themselves
   await expectError(solo.query(`select grant_staff_access('nobody@ozshine.test')`), /No Supabase account/);
   eq((await solo.query(`select grant_staff_access('extra@ozshine.test', 'Extra') r`)).rows[0].r.startsWith("Done"), true);
   const ex = (await solo.query(`select id, role, active from staff where auth_user_id = $1`, [EXTRA])).rows[0];
+  ok((await solo.query(`select email_confirmed_at from auth.users where id = $1`, [EXTRA])).rows[0].email_confirmed_at, "no email verification needed");
   eq([ex.role, ex.active], ["admin", true]);
   eq(await soloCall(`select pin_mode_enabled()`), false);
   const extraCall = (sql, params) => as(solo, "authenticated", EXTRA, () => rpc(solo, sql, params));

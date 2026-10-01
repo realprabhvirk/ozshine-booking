@@ -59,12 +59,12 @@ export function LoginsClient({ logins }: { logins: StaffLogin[] }) {
         <CardBody className="space-y-4 text-[15px]">
           <ol className="list-decimal space-y-2 pl-5">
             <li>
-              In Supabase, open <b>Authentication → Users → Add user → Create new user</b>. Enter their email and a password, and tick <b>Auto Confirm User</b>.
+              In Supabase, open <b>Authentication → Users → Add user → Create new user</b>. Enter their email and a password. No email verification needed: the next step confirms them.
             </li>
             <li>
               Then open <b>SQL Editor</b>, paste the line below and press <b>Run</b>.
             </li>
-            <li>They can now log in here with that email and password.</li>
+            <li>They can log in here straight away with that email and password.</li>
           </ol>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Their email">

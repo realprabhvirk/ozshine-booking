@@ -1,5 +1,7 @@
 # Supabase steps (for the owner)
 
+> **The short version lives in `instructions/README.md`**: what to run, in order, and how to add a staff login. This file has the background on each step.
+
 Everything here is done in the Supabase dashboard: **SQL Editor** (paste a file, press **Run**) or **Authentication** settings. Nothing needs a terminal.
 
 How to copy a SQL file: open it on GitHub → click **Copy raw file** (the two-squares icon at the top right of the file) → paste into a new SQL Editor tab → **Run**. Always copy the whole file. A half-pasted file gives "syntax error" or "unterminated dollar-quoted string".
@@ -12,7 +14,8 @@ How to copy a SQL file: open it on GitHub → click **Copy raw file** (the two-s
 | 2. Lock down old direct-write permissions | `supabase/post_merge_hardening.sql` | ✅ Done |
 | 2b. Pick existing customers on New sale | `supabase/patch_customer_pick.sql` | ✅ Done |
 | 2c. Cash handed over + change on receipts | `supabase/patch_cash_change.sql` | ✅ Done |
-| 2d. Equal logins + "Clear all data" | `supabase/patch_logins_and_reset.sql` | ⏳ **Run this now** |
+| 2d. Equal logins + "Clear all data" | `supabase/patch_logins_and_reset.sql` | ✅ Done |
+| 2e. Staff never need email verification | `supabase/patch_staff_no_email_check.sql` | ⏳ **Run this now** |
 | 3. Turn email confirmation back on | Authentication settings | ⏳ Before real customers sign up |
 | 4. Allow the password-reset link | Authentication → URL Configuration | ⏳ Recommended |
 | Demo data (optional) | `seed_demo.sql` / `remove_demo.sql` | Your call |
@@ -47,7 +50,7 @@ Until it's run, checkout still shows the change on screen, but receipts only sho
 Running it doesn't delete anything; the wipe only happens when someone presses the button and types the confirmation. The last query lists everyone who can log in.
 
 ### Adding a staff login (Supabase only)
-1. **Authentication → Users → Add user → Create new user.** Enter their email and password, and tick **Auto Confirm User**.
+1. **Authentication → Users → Add user → Create new user.** Enter their email and password. No email verification is needed: step 2 confirms them.
 2. **SQL Editor:** `select grant_staff_access('their@email.com', 'Their Name');` then **Run**.
 
 To take access away: `select remove_staff_access('their@email.com');`. It won't remove the last login. Neither app can give access to anyone; the staff app only shows who has access (Settings → Logins), with these lines ready to copy.
