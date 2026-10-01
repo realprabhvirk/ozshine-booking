@@ -1016,6 +1016,14 @@ await test("every database error code has a friendly message in the apps", async
 });
 
 // ---------------------------------------------------------------------------
+suite("Test 8 · app ↔ database contract");
+await test("every table, column, embed and RPC the apps use exists and is allowed", async () => {
+  const { runContract } = await import("./contract.mjs");
+  const r = await runContract();
+  eq(r.problems.map((p) => `${p.at} — ${p.msg}`), [], "contract problems");
+});
+
+// ---------------------------------------------------------------------------
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) {
   console.log("\nFailures:\n  " + failures.join("\n  "));
