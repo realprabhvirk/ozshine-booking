@@ -593,6 +593,26 @@ await test("messages: received/approved/ready are queued once each (demo = simul
   ok(sms.includes("Jess") && sms.includes("https://ozshine.example/manage/"), sms);
   ok(!/\{\{/.test(sms), "unfilled placeholder");
 });
+await test("message links are full web addresses; review request uses the Google review link", async () => {
+  await db.exec(`update settings set public_site_url = null, review_url = null`);
+  try {
+    let v = (await db.query(`select booking_message_vars($1) v`, [jessBooking])).rows[0].v;
+    ok(v.manage_url.startsWith("https://ozshine-booking.vercel.app/manage/"), v.manage_url);
+    ok(v.review_url.startsWith("https://ozshine-booking.vercel.app/manage/") && v.review_url.endsWith("#feedback"), "fallback: " + v.review_url);
+    await db.exec(`update settings set review_url = 'https://g.page/r/ozshine-test/review'`);
+    v = (await db.query(`select booking_message_vars($1) v`, [jessBooking])).rows[0].v;
+    eq(v.review_url, "https://g.page/r/ozshine-test/review");
+    // The patch upgrades the old "rate your visit" wording, and leaves edited wording alone.
+    await db.exec(`update message_templates set body = E'Hi {{first_name}},\\n\\nThanks for trusting us with {{rego}}. We''d love to know how we went — it takes 10 seconds:\\n{{feedback_url}}\\n\\nThe OzShine team' where key = 'review_request' and channel = 'email'`);
+    await db.exec(`update message_templates set body = 'My own words {{feedback_url}}' where key = 'review_request' and channel = 'sms'`);
+    await db.exec(read("../patch_message_links.sql"));
+    const t = Object.fromEntries((await db.query(`select channel, body from message_templates where key = 'review_request'`)).rows.map((r) => [r.channel, r.body]));
+    ok(t.email.includes("{{review_url}}") && !t.email.includes("feedback_url"), t.email);
+    eq(t.sms, "My own words {{feedback_url}}", "edited template untouched");
+  } finally {
+    await db.exec(`update settings set public_site_url = 'https://ozshine.example', review_url = null`);
+  }
+});
 await test("automations run idempotently; win-back respects opt-out", async () => {
   const cust = (await db.query(`select id from customers where name = 'Sam Legacy'`)).rows[0].id;
   await db.exec(`update automations set enabled = true where key = 'winback_60d'`);
@@ -1048,6 +1068,19 @@ await test("every database error code has a friendly message in the apps", async
 
 // ---------------------------------------------------------------------------
 suite("Test 8 · app ↔ database contract");
+await test("no UPDATE/DELETE without WHERE (Supabase's pg-safeupdate rejects them from the app)", async () => {
+  const { readdirSync } = await import("node:fs");
+  // patch_logins_and_reset.sql (already run) is superseded by patch_logins_and_reset_2.sql.
+  const superseded = new Set(["patch_logins_and_reset.sql"]);
+  const files = ["../upgrade_v2.sql", ...readdirSync(join(here, "..")).filter((f) => /^patch_.*\.sql$/.test(f) && !superseded.has(f)).map((f) => `../${f}`)];
+  const bad = [];
+  for (const f of files) {
+    for (const m of read(f).matchAll(/^\s*(update\s+[a-z_.]+\s+(?:[a-z]+\s+)?set\b|delete\s+from\s+[a-z_.]+)[^;]*;/gim)) {
+      if (!/\bwhere\b/i.test(m[0])) bad.push(`${f}: ${m[0].trim().split("\n")[0]}`);
+    }
+  }
+  eq(bad, [], "statements without WHERE");
+});
 await test("every table, column, embed and RPC the apps use exists and is allowed", async () => {
   const { runContract } = await import("./contract.mjs");
   const r = await runContract();
