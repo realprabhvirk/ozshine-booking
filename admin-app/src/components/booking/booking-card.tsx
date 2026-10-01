@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Crown, MessageSquareText, Timer } from "lucide-react";
+import { Clock, Crown, MessageSquareText, Printer, Timer } from "lucide-react";
 import { cn } from "@/lib/core/cn";
 import { formatCents, toCents } from "@/lib/core/money";
 import { VEHICLE_TYPE_LABELS } from "@/lib/core/status";
@@ -131,21 +131,40 @@ export function BookingCard({
         )}
       </button>
 
-      {primary && (
+      {(primary || inv) && (
         <div className="flex gap-2 px-4 pb-4">
           {b.status === "pending" && (
             <Button variant="secondary" className="flex-1" disabled={busy} onClick={() => actions.openDialog("decline", b)}>
               Decline
             </Button>
           )}
-          <Button
-            variant={primary.to === "ready" || primary.to === "checkout" ? "success" : "primary"}
-            className="flex-1"
-            loading={busy}
-            onClick={onPrimary}
-          >
-            {primary.label}
-          </Button>
+          {primary && (
+            <Button
+              variant={primary.to === "ready" || primary.to === "checkout" ? "success" : "primary"}
+              className="flex-1"
+              loading={busy}
+              onClick={onPrimary}
+            >
+              {primary.label}
+            </Button>
+          )}
+          {inv && (
+            <a
+              href={`/print/invoice/${inv.id}?format=receipt&auto=1`}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`Print receipt for ${b.reference_code}`}
+              title="Print receipt"
+              className={cn(
+                "inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-raised px-4 font-semibold text-fg ring-1 ring-line transition hover:ring-line-strong",
+                "focus-visible:outline-2 focus-visible:outline-focus",
+                !primary && "flex-1",
+              )}
+            >
+              <Printer size={18} aria-hidden />
+              {!primary && "Print receipt"}
+            </a>
+          )}
         </div>
       )}
     </article>

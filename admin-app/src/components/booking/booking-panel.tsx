@@ -163,10 +163,16 @@ function PanelBody({ id }: { id: string }) {
           ))}
           <p className="mt-1 text-sm">
             {inv ? (
+              <>
               <Link href={`/invoices/${inv.id}`} className="inline-flex items-center gap-2 hover:underline">
                 <span className="font-mono font-semibold text-accent-ink">{inv.number}</span> <InvoiceBadge status={inv.status} />
                 <span className="tabular-nums">{formatCents(toCents(inv.total))}</span>
               </Link>
+              {" "}
+              <a href={`/print/invoice/${inv.id}?format=receipt&auto=1`} target="_blank" rel="noreferrer" className="ml-2 inline-flex items-center gap-1 text-sm font-semibold text-accent-ink hover:underline">
+                Print receipt
+              </a>
+              </>
             ) : (
               <span className="text-fg-muted">
                 Estimate <span className="tabular-nums">{formatCents(toCents(b.price_estimate))}</span>
