@@ -27,10 +27,17 @@ export default async function BookPage({ searchParams }: PageProps<"/book">) {
       {settings?.demo_banner && <DemoBanner />}
       <SiteHeader phone={settings?.phone} bookHref={null} />
       <main className="min-h-[70dvh] bg-canvas">
-        {!settings || !settings.online_booking_enabled ? (
+        {!settings ? (
+          // The booking system couldn't be reached: don't claim bookings are paused.
+          <div className="mx-auto max-w-xl px-4 py-16">
+            <Notice tone="bad" title="We couldn't load bookings just now">
+              Please refresh the page in a minute. If it keeps happening, give the shop a call.
+            </Notice>
+          </div>
+        ) : !settings.online_booking_enabled || services.length === 0 ? (
           <div className="mx-auto max-w-xl px-4 py-16">
             <Notice tone="warn" title="Online booking is paused">
-              We&apos;re not taking online bookings right now.{settings?.phone ? ` Give us a call on ${settings.phone} and we'll sort you out.` : ""}
+              We&apos;re not taking online bookings right now.{settings.phone ? ` Give us a call on ${settings.phone} and we'll sort you out.` : ""}
             </Notice>
           </div>
         ) : (

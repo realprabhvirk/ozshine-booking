@@ -15,10 +15,10 @@ How to copy a SQL file: open it on GitHub → click **Copy raw file** (the two-s
 | 2b. Pick existing customers on New sale | `supabase/patch_customer_pick.sql` | ✅ Done |
 | 2c. Cash handed over + change on receipts | `supabase/patch_cash_change.sql` | ✅ Done |
 | 2d. Equal logins + "Clear all data" | `supabase/patch_logins_and_reset.sql` | ✅ Done |
-| 2e. Staff never need email verification | `supabase/patch_staff_no_email_check.sql` | ⏳ **Run this now** |
+| 2e. Staff never need email verification | `supabase/patch_staff_no_email_check.sql` | ✅ Done |
+| 2f. Instant, never-twice live sending | `supabase/patch_messaging_live.sql` | ⏳ **Run this now** |
 | 3. Turn email confirmation back on | Authentication settings | ⏳ Before real customers sign up |
 | 4. Allow the password-reset link | Authentication → URL Configuration | ⏳ Recommended |
-| Demo data (optional) | `seed_demo.sql` / `remove_demo.sql` | Your call |
 
 ## 2. Hardening (run once, now)
 
@@ -55,6 +55,14 @@ Running it doesn't delete anything; the wipe only happens when someone presses t
 
 To take access away: `select remove_staff_access('their@email.com');`. It won't remove the last login. Neither app can give access to anyone; the staff app only shows who has access (Settings → Logins), with these lines ready to copy.
 
+## 2f. Live-sending patch (run once)
+
+`supabase/patch_messaging_live.sql` gets the database ready for real emails:
+- a message being sent is "leased" for 10 minutes, so the instant send and the daily job can never both send it;
+- with Live switched on but only email set up, texts are marked "Sent (demo)" instead of failing.
+
+No table or data changes; safe to run twice. Run it before switching Messages → Setup to Live (full steps: `instructions/README.md` → "Turning on real emails").
+
 ## 3. Email confirmation — turn it back on before going public
 
 For the demo, email confirmation is **off** so test accounts work instantly. Before real customers create accounts:
@@ -70,12 +78,6 @@ Supabase → **Authentication** → **URL Configuration**:
 - **Redirect URLs:** add `https://<booking site address>/account`.
 
 Without this, "Forgot your password?" emails may point to the wrong place.
-
-## Demo data (optional)
-
-- `supabase/seed_demo.sql` adds about 60 made-up customers, 3 months of bookings, invoices, payments, reviews and rewards, plus a busy "today" on the Floor. It makes the dashboards and reports look real for a sales demo.
-  - Every demo row is flagged. Phone numbers are in the range reserved for fiction, emails are `@example.com`, invoices are numbered `DEMO-…`, and demo customers can never be sent a real message.
-- `supabase/remove_demo.sql` deletes exactly the demo rows and nothing else. Run it before going live.
 
 ## Other files (you don't need to run these)
 

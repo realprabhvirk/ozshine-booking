@@ -26,7 +26,6 @@ export type FeedbackRow = {
   comment: string | null;
   created_at: string;
   handled_at: string | null;
-  is_demo: boolean;
   customer: { id: string; name: string; phone: string | null } | null;
   booking: { id: string; reference_code: string; requested_date: string; service: { name: string } | null } | null;
   handled: { name: string } | null;
@@ -137,7 +136,6 @@ export function FeedbackClient({ feedback, testimonials }: { feedback: FeedbackR
                       <span className="font-semibold">Customer</span>
                     )}
                     {f.handled_at && <Badge tone="ok">Sorted{f.handled ? ` by ${f.handled.name}` : ""}</Badge>}
-                    {f.is_demo && <Badge tone="neutral">Demo</Badge>}
                   </p>
                   <p className="text-sm text-fg-muted">
                     {f.booking?.service?.name}

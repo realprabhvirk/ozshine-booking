@@ -26,6 +26,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/settings/a
     .gte("created_at", shopDayStart(from))
     .lt("created_at", shopDayStart(addDaysISO(to, 1)))
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .range(page * PAGE, page * PAGE + PAGE - 1);
   const prefixes = AUDIT_AREAS.find((a) => a.value === area)?.prefixes;
   if (prefixes) query = query.or(prefixes.map((p) => `action.like.${p}.*`).join(","));

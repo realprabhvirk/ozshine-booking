@@ -107,8 +107,8 @@ export function ExtrasEditor({ addons, bays }: { addons: Addon[]; bays: BayRow[]
         <p className="px-5 pb-4 text-xs text-fg-faint">How many cars can be booked at once is set under Hours & booking.</p>
       </Card>
 
-      <AddonDialog key={addon === null ? "none" : addon === "new" ? "new" : addon.id} addon={addon} nextSort={(addons.at(-1)?.sort_order ?? 0) + 10} onClose={() => setAddon(null)} />
-      <BayDialog key={bay === null ? "none" : bay === "new" ? "new" : bay.id} bay={bay} nextSort={(bays.at(-1)?.sort_order ?? 0) + 1} onClose={() => setBay(null)} />
+      <AddonDialog key={`addon-${addon === null ? "closed" : addon === "new" ? "new" : addon.id}`} addon={addon} nextSort={(addons.at(-1)?.sort_order ?? 0) + 10} onClose={() => setAddon(null)} />
+      <BayDialog key={`bay-${bay === null ? "closed" : bay === "new" ? "new" : bay.id}`} bay={bay} nextSort={(bays.at(-1)?.sort_order ?? 0) + 1} onClose={() => setBay(null)} />
       <ConfirmDialog
         open={!!remove}
         onClose={() => setRemove(null)}

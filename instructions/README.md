@@ -13,11 +13,12 @@ Everything you need to run or set up yourself, in plain steps. Nothing here need
 | 3 | `supabase/patch_customer_pick.sql` | Pick an existing customer on New sale (no duplicates) | ✅ Done |
 | 4 | `supabase/patch_cash_change.sql` | Cash handed over + change printed on receipts | ✅ Done |
 | 5 | `supabase/patch_logins_and_reset.sql` | Equal logins + Settings → Clear all data | ✅ Done |
-| 6 | `supabase/patch_staff_no_email_check.sql` | Staff logins never need email verification | ⏳ **Run this one** |
+| 6 | `supabase/patch_staff_no_email_check.sql` | Staff logins never need email verification | ✅ Done |
+| 7 | `supabase/patch_messaging_live.sql` | Real emails go out instantly, never twice; texts stay demo until SMS is set up | ⏳ Run this |
 
 New patches will be added to this table with ⏳ when there's something to run.
 
-**Never run** `supabase/schema.sql` on the live project: it's only for building a brand-new empty database. `seed_demo.sql` / `remove_demo.sql` add or remove fake demo data; run them only if you want demo data.
+**Never run** `supabase/schema.sql` on the live project: it's only for building a brand-new empty database.
 
 ## 2. Adding a staff login (two steps, no email verification)
 
@@ -46,18 +47,31 @@ Why two steps: customers who make an account on the booking site land in the sam
 - [ ] Supabase → **Authentication → URL Configuration**: set **Site URL** to `https://ozshine-booking.vercel.app` (or your own domain later) and add `https://ozshine-booking.vercel.app/account` under **Redirect URLs**.
 - [ ] Staff app → **Settings → Business**: enter the ABN and email, then switch **off** the "demo" banner.
 - [ ] Check **Settings → Hours & booking**, **Services & prices** and **Extras** match the real shop.
-- [ ] If you loaded demo data: run `supabase/remove_demo.sql`. To start completely fresh instead, use **Settings → Clear all data**.
+- [ ] To start completely fresh (e.g. remove test bookings), use **Settings → Clear all data**.
 
-## 4. Vercel (already set up, for reference)
+## 4. Turning on real emails (from beenleigh@ozshinecarwash.com.au)
+
+Texts stay "Sent (demo)" until an SMS account is added later; only emails go out for real.
+
+1. **Resend → Domains → Add domain** → `ozshinecarwash.com.au`. Resend shows a few DNS records: add them where the domain is managed (whoever hosts ozshinecarwash.com.au). Wait until Resend shows the domain as **Verified**.
+2. **Vercel → ozshine-admin (staff app) → Settings → Environment Variables**: `RESEND_API_KEY` is already there. Nothing else needed for email (the sender defaults to `OzShine Beenleigh <beenleigh@ozshinecarwash.com.au>`).
+3. **Staff app → Messages → Setup → Daily job → Make a key** → Copy. In Vercel (staff app project) add `CRON_SECRET` with that key (Production) → **Deployments → ⋯ → Redeploy**.
+4. Run patch **#7** above in Supabase.
+5. **Staff app → Messages → Setup → Switch to live sending.**
+6. Test: make a booking on the booking site with your own email. The confirmation should land within a few seconds and show as "Sent" (not demo) in Messages.
+
+To stop real sending at any time: Messages → Setup → **Back to demo mode**.
+
+## 5. Vercel (already set up, for reference)
 
 | Project | Root Directory | Framework | Environment variables |
 |---|---|---|---|
 | ozshine-booking (booking site) | `customer-app` | Next.js | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
 | ozshine-admin (staff app) | `admin-app` | Next.js | same two |
 
-Optional extras (not needed now): see `docs/UPGRADE_NOTES.md` → "Env vars" for the daily reminder job and real SMS/email.
+Staff app extras for real messages: `RESEND_API_KEY` and `CRON_SECRET` (step 4). Real SMS later needs `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM`. Full list: `docs/UPGRADE_NOTES.md` → "Env vars".
 
-## 5. Links
+## 6. Links
 
 - Booking site: https://ozshine-booking.vercel.app
 - Staff app: https://ozshine-admin.vercel.app

@@ -180,6 +180,28 @@ export function CheckoutDialog({ booking, open, onClose }: { booking: BoardBooki
     }
   }
 
+  // The payment is already saved by the time these run, so a failure here
+  // must never read as "payment not recorded" (a retry would charge twice).
+  async function saveTendered(paymentId: string, cents: number) {
+    try {
+      await setPaymentTendered(supabase, paymentId, cents);
+    } catch (e) {
+      toast.error(e, "Payment saved, but the cash handed over didn't save to the receipt");
+    }
+  }
+
+  async function completeAfterPayment(): Promise<boolean> {
+    if (!booking) return false;
+    try {
+      await advanceBooking(supabase, booking.id, "completed");
+      return true;
+    } catch (e) {
+      toast.error(e, "Payment saved, but the job couldn't be marked complete — try Complete again");
+      await load();
+      return false;
+    }
+  }
+
   // Take every open part of a split payment, one after another. Each part has
   // its own key, so retrying after a failure never charges a part twice.
   async function paySplit() {
@@ -193,8 +215,8 @@ export function CheckoutDialog({ booking, open, onClose }: { booking: BoardBooki
         const r = await recordPayment(supabase, invoice.id, cents, p.method, { reference: p.reference.trim() || null, idempotencyKey: p.key });
         const tendered = p.method === "cash" ? parseMoneyInput(p.tenderedText) : null;
         if (tendered !== null && tendered > cents) {
-          await setPaymentTendered(supabase, r.payment_id, tendered);
           changeTotal += tendered - cents;
+          await saveTendered(r.payment_id, tendered);
         }
         setPart(p.key, { done: true });
         left = toCents(r.balance_due);
@@ -206,7 +228,7 @@ export function CheckoutDialog({ booking, open, onClose }: { booking: BoardBooki
         await load();
         return;
       }
-      if (!completed) await advanceBooking(supabase, booking.id, "completed");
+      if (!completed && !(await completeAfterPayment())) return;
       toast.success(completed ? "Paid in full" : "Paid & completed", `${summary}${changeTotal ? ` · give ${formatCents(changeTotal)} change` : ""}`);
       onClose();
     } catch (e) {
@@ -227,7 +249,7 @@ export function CheckoutDialog({ booking, open, onClose }: { booking: BoardBooki
       });
       setAttempt(crypto.randomUUID());
       // Cash: remember what was handed over so the receipt shows the change.
-      if (method === "cash" && tendered !== null && tendered > amount) await setPaymentTendered(supabase, r.payment_id, tendered);
+      if (method === "cash" && tendered !== null && tendered > amount) await saveTendered(r.payment_id, tendered);
       const left = toCents(r.balance_due);
       if (left > 0) {
         toast.success(`${formatCents(amount)} received`, `${formatCents(left)} still owing`);
@@ -236,7 +258,7 @@ export function CheckoutDialog({ booking, open, onClose }: { booking: BoardBooki
         await load();
         return;
       }
-      if (!completed) await advanceBooking(supabase, booking.id, "completed");
+      if (!completed && !(await completeAfterPayment())) return;
       toast.success(
         completed ? "Paid in full" : "Paid & completed",
         `${booking.reference_code} · ${formatCents(amount)} ${PAYMENT_METHOD_LABELS[method]}${change !== null && change > 0 ? ` · give ${formatCents(change)} change` : ""}`,

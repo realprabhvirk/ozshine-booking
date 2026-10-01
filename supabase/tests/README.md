@@ -31,8 +31,7 @@ What's covered:
    compatibility paths.
 4. **RLS matrix.** What anon, a signed-in customer, staff, an admin and a
    deactivated staffer can and can't see or write.
-5. **Demo data and hardening.** `seed_demo.sql` → `remove_demo.sql` leaves
-   real data identical; `post_merge_hardening.sql` blocks direct writes while
+5. **Hardening.** `post_merge_hardening.sql` blocks direct writes while
    the RPCs keep working; `rollback_hardening.sql` undoes it.
 
 PGlite runs Postgres 18; Supabase runs 15/17. Nothing in the SQL depends on

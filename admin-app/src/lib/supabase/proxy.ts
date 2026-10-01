@@ -2,8 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // /api/cron checks its own secret (see app/api/cron/messages/route.ts);
+// /api/messages/flush only sends what is already queued (see its route.ts);
 // /display/<key> is the shop TV, gated by its own unguessable key.
-const PUBLIC_PATHS = ["/login", "/api/cron/", "/display/"];
+const PUBLIC_PATHS = ["/login", "/api/cron/", "/api/messages/flush", "/display/"];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });

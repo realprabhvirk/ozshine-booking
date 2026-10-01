@@ -46,7 +46,10 @@ export function SetupClient({
   const [confirm, setConfirm] = useState<"key" | "live" | null>(null);
   const [busy, setBusy] = useState(false);
   const isAdmin = staff.role === "admin";
-  const canGoLive = env.sms || env.email;
+  // Sending runs on the server with CRON_SECRET, so Live without it would
+  // leave every message stuck in the queue.
+  const hasProvider = env.sms || env.email;
+  const canGoLive = hasProvider && keyGenerated && env.cron;
 
   async function makeKey() {
     setBusy(true);
@@ -90,7 +93,9 @@ export function SetupClient({
             </p>
           ) : (
             <p>
-              <b>Live.</b> Messages are sent through {[env.sms && "Twilio (SMS)", env.email && "Resend (email)"].filter(Boolean).join(" and ")} by the daily job. Demo customers are never sent anything real.
+              <b>Live.</b> Messages go out within seconds through {[env.sms && "Twilio (SMS)", env.email && "Resend (email)"].filter(Boolean).join(" and ")}.
+              {!env.sms && " Texts aren't set up, so they're still marked “Sent (demo)”."}
+              {!env.email && " Emails aren't set up, so they're still marked “Sent (demo)”."}
             </p>
           )}
           <ul className="space-y-2 text-sm">
@@ -100,6 +105,7 @@ export function SetupClient({
             <Check ok={env.email}>
               Email provider (Resend): {env.email ? "connected" : "not set up"}
             </Check>
+            <Check ok={keyGenerated && env.cron}>Sending key made and added to Vercel (see Daily job)</Check>
           </ul>
           {isAdmin &&
             (provider === "demo" ? (
@@ -111,16 +117,19 @@ export function SetupClient({
                 Back to demo mode
               </Button>
             ))}
-          {!canGoLive && (
+          {!hasProvider && (
             <p className="text-sm text-fg-muted">
               Live sending needs an SMS or email provider account first. That&apos;s a separate sign-off (it costs money per message), so it&apos;s off for now.
             </p>
+          )}
+          {hasProvider && !canGoLive && (
+            <p className="text-sm text-fg-muted">Make the key under Daily job and add it to Vercel first. The app uses it to send.</p>
           )}
         </CardBody>
       </Card>
 
       <Card>
-        <CardHeader title="Daily job" description="Sends reminders and feedback requests even when nobody has the app open" />
+        <CardHeader title="Daily job" description="Needed for live sending. Also sends reminders and feedback requests when nobody has the app open" />
         <CardBody className="space-y-4">
           <ul className="space-y-2 text-sm">
             <Check ok={keyGenerated}>Key made here</Check>

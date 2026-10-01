@@ -13,16 +13,14 @@ Both apps deploy automatically from `main` on Vercel (one project each).
 1. ✅ `upgrade_v2.sql` run on Supabase.
 2. ⏳ Run `post_merge_hardening.sql` (see `docs/SUPABASE_STEPS.md`).
 3. ⏳ Supabase: turn **Confirm email** back on and set the URL configuration.
-4. ⏳ If demo data was loaded: run `remove_demo.sql`.
+4. ⏳ To start completely fresh, use **Settings → Clear all data** in the staff app.
 5. ⏳ Staff app → **Settings → Business**:
    - enter the **ABN** (invoices then say "Tax invoice")
    - enter the email and review link
    - switch **off** the "demo" banner on the booking site
 6. ⏳ Check **Settings → Hours & booking**, **Services & prices** and **Extras** against what the shop really charges. The extras and job lengths were my estimates (see `docs/UPGRADE_NOTES.md`).
-7. ⏳ Optional:
-   - Messages → Setup → make the daily-job key, then add it in Vercel as `CRON_SECRET`
-   - point a custom domain at the booking site and set `NEXT_PUBLIC_SITE_URL`
-8. Later, once the owner approves the cost: sign up for Twilio (SMS) and/or Resend (email), add their keys in Vercel, then Messages → Setup → **Switch to live sending**.
+7. ⏳ Optional: point a custom domain at the booking site and set `NEXT_PUBLIC_SITE_URL`.
+8. ⏳ Real emails (owner approved, Resend): follow `instructions/README.md` → "Turning on real emails" (verify the domain in Resend, make the key in Messages → Setup and add it in Vercel as `CRON_SECRET`, run `patch_messaging_live.sql`, then **Switch to live sending**). Real SMS later: add the Twilio keys in Vercel; until then texts stay "Sent (demo)".
 
 ## Vercel settings (both projects)
 
@@ -57,8 +55,8 @@ Every login has the same full access. Logins are added or removed only in Supaba
 - **Every write goes through a Postgres function** (`supabase/upgrade_v2.sql`). Prices are recalculated server-side, slots are re-checked under a lock, and the booking status flow is enforced. Each change records who made it, and money changes go to `audit_log`. The apps only *read* tables directly, and row-level security decides what each role can see.
 - **Errors:** functions raise `oz_raise(CODE, message)`, and `lib/core/errors.ts` turns codes into friendly text.
 - **Live updates:** Supabase Realtime on bookings, invoices and payments, plus a 60-second backup poll. The public booking page and the TV poll instead, since the public role can't subscribe to private tables.
-- **Messages:** everything goes to `message_outbox`. Demo mode marks messages "simulated". In live mode the daily cron (`admin-app/src/app/api/cron/messages`, `vercel.json`) hands them to Twilio/Resend. It's authenticated by `CRON_SECRET`, which the database checks against a bcrypt hash, so **no service-role key is used anywhere**.
-- **Tests:** `supabase/tests` (94, real SQL in PGlite), plus `npm test` in each app. Run `npm run typecheck && npm run lint && npm run build` in an app before a PR.
+- **Messages:** everything goes to `message_outbox`. Demo mode marks messages "simulated". In live mode `/api/messages/flush` sends them within seconds (called by the staff app after actions and by the booking site after a booking), and the daily cron (`admin-app/src/app/api/cron/messages`, `vercel.json`) catches scheduled reminders. Both use `lib/outbox-sender.ts`, and are authenticated by `CRON_SECRET`, which the database checks against a bcrypt hash, so **no service-role key is used anywhere**.
+- **Tests:** `supabase/tests` (89, real SQL in PGlite, including a check that every query the apps make matches the database), plus `npm test` in each app. Run `npm run typecheck && npm run lint && npm run build` in an app before a PR.
 - **Env vars:** see the table in `docs/UPGRADE_NOTES.md`. Only the Supabase URL and anon key are required.
 
 ## Known limitations
@@ -71,8 +69,8 @@ Every login has the same full access. Logins are added or removed only in Supaba
 ## Suggested next steps
 
 1. SMS one-time codes at sign-up (closes the phone-verification gap and allows account linking by phone).
-2. Twilio/Resend accounts, so confirmations and reminders really go out.
+2. A Twilio account, so texts really go out too (email is ready via Resend).
 3. Custom domain for the booking site.
-4. If more staff join: add their logins (per-person PINs then switch on automatically).
+4. If more staff join: add their logins in Supabase (`instructions/README.md` step 2). Every login has the same access; there's no PIN screen.
 
 Full decision log: `docs/UPGRADE_NOTES.md`. Click-through checks: `docs/TEST_PLAN.md`.

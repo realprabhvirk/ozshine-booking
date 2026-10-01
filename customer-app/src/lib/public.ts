@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { toCents, type Cents } from "@/lib/core/money";
 import type { BookingStatus, VehicleType } from "@/lib/core/status";
 import { callRpc } from "@/lib/rpc";
+import { kickOutbox } from "@/lib/site";
 
 export type DayHours = { open: string; close: string; closed: boolean };
 export type Money = number | string;
@@ -181,8 +182,14 @@ export function checkPromo(supabase: SupabaseClient, code: string, serviceId: st
   });
 }
 
+// These can queue a text/email to the customer: ask for it to go out now.
+function sendNow<T>(r: T): T {
+  kickOutbox();
+  return r;
+}
+
 export function createBooking(supabase: SupabaseClient, payload: BookingPayload) {
-  return callRpc<BookingCreated>(supabase, "create_public_booking", { payload });
+  return callRpc<BookingCreated>(supabase, "create_public_booking", { payload }).then(sendNow);
 }
 
 export function getBookingByToken(supabase: SupabaseClient, token: string) {
@@ -190,11 +197,11 @@ export function getBookingByToken(supabase: SupabaseClient, token: string) {
 }
 
 export function cancelByToken(supabase: SupabaseClient, token: string, reason: string) {
-  return callRpc<BookingView>(supabase, "cancel_booking_by_token", { p_token: token, p_reason: reason || null });
+  return callRpc<BookingView>(supabase, "cancel_booking_by_token", { p_token: token, p_reason: reason || null }).then(sendNow);
 }
 
 export function rescheduleByToken(supabase: SupabaseClient, token: string, date: string, time: string) {
-  return callRpc<BookingView>(supabase, "reschedule_booking_by_token", { p_token: token, p_new_date: date, p_new_time: time });
+  return callRpc<BookingView>(supabase, "reschedule_booking_by_token", { p_token: token, p_new_date: date, p_new_time: time }).then(sendNow);
 }
 
 export function submitFeedback(supabase: SupabaseClient, token: string, rating: number, comment: string) {

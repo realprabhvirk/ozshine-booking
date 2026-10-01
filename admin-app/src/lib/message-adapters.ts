@@ -1,16 +1,24 @@
-// Server-only: real SMS/email providers. Only imported by the cron route.
+// Server-only: real SMS/email providers. Only imported by the sending routes.
 // Every provider is OFF unless its env vars are set in Vercel, and the shop's
 // "message provider" setting is switched from Demo to Live. See
 // docs/UPGRADE_NOTES.md → Env vars.
-import { toE164, type Channel } from "@/lib/messaging";
+import { toE164, type Channel } from "./messaging.ts";
 
-export type SendResult = { ok: true; provider: string; providerId: string | null } | { ok: false; provider: string; error: string };
+// retry: the provider said "slow down" / is briefly down, so leave the message
+// queued; it's picked up again when its lease runs out.
+export type SendResult = { ok: true; provider: string; providerId: string | null } | { ok: false; provider: string; error: string; retry?: boolean };
+const retryable = (status: number) => status === 429 || status >= 500;
 export type OutgoingMessage = { id: string; channel: Channel; to: string | null; subject: string | null; body: string };
+
+// Sender used when RESEND_FROM isn't set. The domain must be verified in
+// Resend (Domains) or Resend refuses the email.
+export const DEFAULT_EMAIL_FROM = "OzShine Beenleigh <beenleigh@ozshinecarwash.com.au>";
+const emailFrom = () => process.env.RESEND_FROM?.trim() || DEFAULT_EMAIL_FROM;
 
 export function providerStatus() {
   return {
     sms: !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM),
-    email: !!(process.env.RESEND_API_KEY && process.env.RESEND_FROM),
+    email: !!process.env.RESEND_API_KEY,
     cron: !!process.env.CRON_SECRET,
   };
 }
@@ -32,28 +40,32 @@ async function sendSms(to: string | null, body: string): Promise<SendResult> {
     signal: AbortSignal.timeout(15000),
   });
   const json = (await res.json().catch(() => ({}))) as { sid?: string; message?: string };
-  return res.ok ? { ok: true, provider: "twilio", providerId: json.sid ?? null } : { ok: false, provider: "twilio", error: json.message ?? `Twilio error ${res.status}` };
+  return res.ok ? { ok: true, provider: "twilio", providerId: json.sid ?? null } : { ok: false, provider: "twilio", error: json.message ?? `Twilio error ${res.status}`, retry: retryable(res.status) };
 }
 
-async function sendEmail(to: string | null, subject: string | null, body: string): Promise<SendResult> {
+async function sendEmail(to: string | null, subject: string | null, body: string, id: string): Promise<SendResult> {
   const key = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM;
-  if (!key || !from) return { ok: false, provider: "resend", error: "Email isn't set up (Resend details missing in Vercel)." };
+  const from = emailFrom();
+  if (!key) return { ok: false, provider: "resend", error: "Email isn't set up (Resend details missing in Vercel)." };
   if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { ok: false, provider: "resend", error: "Not a valid email address." };
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    // Same outbox id = same email: Resend drops repeats for 24h, so a retry
+    // after a timeout can't send it twice.
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "Idempotency-Key": `oz-${id}` },
     body: JSON.stringify({ from, to: [to], subject: subject || "A message from OzShine", text: body }),
     signal: AbortSignal.timeout(15000),
   });
   const json = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
-  return res.ok ? { ok: true, provider: "resend", providerId: json.id ?? null } : { ok: false, provider: "resend", error: json.message ?? `Resend error ${res.status}` };
+  return res.ok ? { ok: true, provider: "resend", providerId: json.id ?? null } : { ok: false, provider: "resend", error: json.message ?? `Resend error ${res.status}`, retry: retryable(res.status) };
 }
 
 export async function sendMessage(m: OutgoingMessage): Promise<SendResult> {
   try {
-    return m.channel === "sms" ? await sendSms(m.to, m.body) : await sendEmail(m.to, m.subject, m.body);
+    return m.channel === "sms" ? await sendSms(m.to, m.body) : await sendEmail(m.to, m.subject, m.body, m.id);
   } catch (e) {
-    return { ok: false, provider: m.channel === "sms" ? "twilio" : "resend", error: e instanceof Error ? e.message : "Send failed" };
+    // Network error / timeout: we can't tell if it went. Email retries safely
+    // (idempotency key); a text is marked failed so staff decide on a resend.
+    return { ok: false, provider: m.channel === "sms" ? "twilio" : "resend", error: e instanceof Error ? e.message : "Send failed", retry: m.channel === "email" };
   }
 }
