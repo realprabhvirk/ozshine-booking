@@ -11,7 +11,7 @@ export default async function FeedbackPage() {
   const [fb, ts] = await Promise.all([
     supabase
       .from("feedback")
-      .select("id, rating, comment, created_at, handled_at, is_demo, customer:customers(id, name, phone), booking:bookings(id, reference_code, requested_date, service:services(name)), handled:staff!handled_by(name)")
+      .select("id, rating, comment, created_at, handled_at, customer:customers(id, name, phone), booking:bookings(id, reference_code, requested_date, service:services(name)), handled:staff!handled_by(name)")
       .order("created_at", { ascending: false })
       .limit(300),
     supabase.from("testimonials").select("id, name, text, rating, published, sort, created_at").order("sort").order("created_at", { ascending: false }),

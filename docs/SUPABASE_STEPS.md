@@ -18,7 +18,6 @@ How to copy a SQL file: open it on GitHub → click **Copy raw file** (the two-s
 | 2e. Staff never need email verification | `supabase/patch_staff_no_email_check.sql` | ⏳ **Run this now** |
 | 3. Turn email confirmation back on | Authentication settings | ⏳ Before real customers sign up |
 | 4. Allow the password-reset link | Authentication → URL Configuration | ⏳ Recommended |
-| Demo data (optional) | `seed_demo.sql` / `remove_demo.sql` | Your call |
 
 ## 2. Hardening (run once, now)
 
@@ -70,12 +69,6 @@ Supabase → **Authentication** → **URL Configuration**:
 - **Redirect URLs:** add `https://<booking site address>/account`.
 
 Without this, "Forgot your password?" emails may point to the wrong place.
-
-## Demo data (optional)
-
-- `supabase/seed_demo.sql` adds about 60 made-up customers, 3 months of bookings, invoices, payments, reviews and rewards, plus a busy "today" on the Floor. It makes the dashboards and reports look real for a sales demo.
-  - Every demo row is flagged. Phone numbers are in the range reserved for fiction, emails are `@example.com`, invoices are numbered `DEMO-…`, and demo customers can never be sent a real message.
-- `supabase/remove_demo.sql` deletes exactly the demo rows and nothing else. Run it before going live.
 
 ## Other files (you don't need to run these)
 

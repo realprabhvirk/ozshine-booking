@@ -13,7 +13,7 @@ Both apps deploy automatically from `main` on Vercel (one project each).
 1. ✅ `upgrade_v2.sql` run on Supabase.
 2. ⏳ Run `post_merge_hardening.sql` (see `docs/SUPABASE_STEPS.md`).
 3. ⏳ Supabase: turn **Confirm email** back on and set the URL configuration.
-4. ⏳ If demo data was loaded: run `remove_demo.sql`.
+4. ⏳ To start completely fresh, use **Settings → Clear all data** in the staff app.
 5. ⏳ Staff app → **Settings → Business**:
    - enter the **ABN** (invoices then say "Tax invoice")
    - enter the email and review link

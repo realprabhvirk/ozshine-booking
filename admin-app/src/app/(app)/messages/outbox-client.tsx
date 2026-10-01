@@ -161,7 +161,6 @@ export function OutboxClient({
                           seg ? `${seg.length} characters · ${seg.segments} SMS part${seg.segments === 1 ? "" : "s"}` : null,
                           m.sent_at ? `Sent ${formatDateTime(m.sent_at)}` : m.status === "queued" ? `Due ${formatDateTime(m.scheduled_for)}` : null,
                           m.provider && m.provider !== "demo" ? `via ${m.provider}` : null,
-                          m.is_demo ? "Demo data" : null,
                         ]
                           .filter(Boolean)
                           .join(" · ")}

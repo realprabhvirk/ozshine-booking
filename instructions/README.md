@@ -13,11 +13,11 @@ Everything you need to run or set up yourself, in plain steps. Nothing here need
 | 3 | `supabase/patch_customer_pick.sql` | Pick an existing customer on New sale (no duplicates) | ✅ Done |
 | 4 | `supabase/patch_cash_change.sql` | Cash handed over + change printed on receipts | ✅ Done |
 | 5 | `supabase/patch_logins_and_reset.sql` | Equal logins + Settings → Clear all data | ✅ Done |
-| 6 | `supabase/patch_staff_no_email_check.sql` | Staff logins never need email verification | ⏳ **Run this one** |
+| 6 | `supabase/patch_staff_no_email_check.sql` | Staff logins never need email verification | ✅ Done |
 
 New patches will be added to this table with ⏳ when there's something to run.
 
-**Never run** `supabase/schema.sql` on the live project: it's only for building a brand-new empty database. `seed_demo.sql` / `remove_demo.sql` add or remove fake demo data; run them only if you want demo data.
+**Never run** `supabase/schema.sql` on the live project: it's only for building a brand-new empty database.
 
 ## 2. Adding a staff login (two steps, no email verification)
 
@@ -46,7 +46,7 @@ Why two steps: customers who make an account on the booking site land in the sam
 - [ ] Supabase → **Authentication → URL Configuration**: set **Site URL** to `https://ozshine-booking.vercel.app` (or your own domain later) and add `https://ozshine-booking.vercel.app/account` under **Redirect URLs**.
 - [ ] Staff app → **Settings → Business**: enter the ABN and email, then switch **off** the "demo" banner.
 - [ ] Check **Settings → Hours & booking**, **Services & prices** and **Extras** match the real shop.
-- [ ] If you loaded demo data: run `supabase/remove_demo.sql`. To start completely fresh instead, use **Settings → Clear all data**.
+- [ ] To start completely fresh (e.g. remove test bookings), use **Settings → Clear all data**.
 
 ## 4. Vercel (already set up, for reference)
 

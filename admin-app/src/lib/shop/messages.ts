@@ -16,7 +16,6 @@ export type OutboxRow = {
   scheduled_for: string;
   sent_at: string | null;
   created_at: string;
-  is_demo: boolean;
   customer: { id: string; name: string } | null;
   campaign: { id: string; name: string } | null;
 };
@@ -57,7 +56,7 @@ export type CampaignRow = {
 };
 
 export const OUTBOX_SELECT =
-  "id, channel, template_key, to_address, subject, body, status, provider, error, scheduled_for, sent_at, created_at, is_demo, customer:customers(id, name), campaign:campaigns(id, name)";
+  "id, channel, template_key, to_address, subject, body, status, provider, error, scheduled_for, sent_at, created_at, customer:customers(id, name), campaign:campaigns(id, name)";
 
 export type OutboxFilter = { status?: OutboxStatus | "skipped" | ""; channel?: Channel | ""; q?: string; page?: number };
 export const OUTBOX_PAGE = 50;

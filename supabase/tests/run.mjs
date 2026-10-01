@@ -864,77 +864,9 @@ await test("no function in public is executable by anon unless deliberately gran
 
 
 // ===========================================================================
-// TEST 5 — demo data + post-merge hardening
+// TEST 5 — post-merge hardening
 // ===========================================================================
-suite("Test 5 · demo seed, demo removal, hardening");
-const snapshotReal = async () => (await db.query(`select
-  (select count(*) from customers where not is_demo)::int c, (select count(*) from vehicles where not is_demo)::int v,
-  (select count(*) from bookings where not is_demo)::int b, (select count(*) from invoices where not is_demo)::int i,
-  (select count(*) from payments where not is_demo)::int p, (select coalesce(sum(amount), 0)::text from payments where not is_demo) ps,
-  (select last_number from invoice_counters limit 1) n`)).rows[0];
-const realBefore = await snapshotReal();
-const outboxBefore = (await db.query(`select count(*)::int n from message_outbox`)).rows[0].n;
-let seedCounts;
-await test("seed_demo.sql loads a realistic dataset", async () => {
-  await db.exec(read("../seed_demo.sql"));
-  seedCounts = (await db.query(`select (select count(*) from customers where is_demo)::int c,
-    (select count(*) from vehicles where is_demo)::int v, (select count(*) from bookings where is_demo)::int b,
-    (select count(*) from invoices where is_demo)::int i, (select count(*) from loyalty_rewards where is_demo)::int r,
-    (select count(*) from feedback where is_demo)::int f,
-    (select count(*) from bookings where is_demo and requested_date = shop_today())::int today`)).rows[0];
-  ok(seedCounts.c === 60 && seedCounts.v >= 75 && seedCounts.b >= 220 && seedCounts.i >= 180, JSON.stringify(seedCounts));
-  ok(seedCounts.r >= 3 && seedCounts.f >= 10 && seedCounts.today === 11, JSON.stringify(seedCounts));
-});
-await test("seed didn't touch real data, the invoice counter, or spam the outbox", async () => {
-  eq(await snapshotReal(), realBefore);
-  const added = (await db.query(`select count(*)::int n from message_outbox`)).rows[0].n - outboxBefore;
-  ok(added > 0 && added < 150, `outbox grew by ${added}`);
-  eq((await db.query(`select count(*)::int n from message_outbox where is_demo and status <> 'simulated_sent' and status not like 'skipped%'`)).rows[0].n, 0);
-  eq((await db.query(`select count(*)::int n from invoices where is_demo and number not like 'DEMO-%'`)).rows[0].n, 0);
-});
-await test("demo invoices/bookings are internally consistent", async () => {
-  const bad = (await db.query(`select count(*)::int n from invoices i join bookings b on b.id = i.booking_id
-    where i.is_demo and (b.amount_charged is distinct from i.total or b.paid <> (i.status = 'paid'))`)).rows[0].n;
-  eq(bad, 0, "booking money synced from invoices");
-  const debt = await staffCall(U.staff, `select debtors_aging()`);
-  ok(debt.length > 1, "some unpaid");
-  const dkey = (await db.query(`select display_key from settings`)).rows[0].display_key;
-  const board = await as(db, "anon", null, () => rpc(db, `select get_display_board($1)`, [dkey]));
-  ok(board.in_bay.length >= 2 && board.ready.length >= 1, JSON.stringify(board).slice(0, 300));
-  const from = (await db.query(`select shop_today() - 90 d`)).rows[0].d;
-  const ov = await staffCall(U.staff, `select report_overview($1, shop_today())`, [from]);
-  ok(ov.cars > 200, "report sees demo history: " + ov.cars);
-});
-await test("seed refuses to run twice", async () => {
-  await expectError(db.exec(read("../seed_demo.sql")), /already loaded/);
-  await db.exec(`select set_config('oz.seeding', '', false)`);
-});
-await test("a real booking made against a demo customer is cleaned up too", async () => {
-  const demoPhone = (await db.query(`select phone from customers where is_demo order by phone limit 1`)).rows[0].phone;
-  const w = await staffCall(U.staff, `select create_walkin_order($1::jsonb, $2)`, [JSON.stringify({ vehicle_type: "sedan", service_id: ids.wash, phone: demoPhone }), crewTok]);
-  const inv = await staffCall(U.staff, `select issue_invoice($1, $2)`, [w.booking_id, crewTok]);
-  await staffCall(U.staff, `select record_payment($1, 40, 'cash', null, $2)`, [inv, crewTok]);
-});
-await test("remove_demo.sql removes demo rows only; real data identical", async () => {
-  const real = await snapshotReal();
-  await db.exec(read("../remove_demo.sql"));
-  const left = (await db.query(`select (select count(*) from customers where is_demo)::int c,
-    (select count(*) from bookings where is_demo)::int b, (select count(*) from invoices where is_demo)::int i,
-    (select count(*) from payments where is_demo)::int p, (select count(*) from message_outbox where is_demo)::int m,
-    (select count(*) from invoices where number like 'DEMO-%')::int dn`)).rows[0];
-  eq(left, { c: 0, b: 0, i: 0, p: 0, m: 0, dn: 0 });
-  const after = await snapshotReal();
-  // The walk-in above was a real row attached to a demo customer, so it goes too.
-  eq({ ...after, b: after.b + 1, i: after.i + 1, p: after.p + 1, ps: (Number(after.ps) + 40).toFixed(2) },
-     { ...real, ps: Number(real.ps).toFixed(2) });
-  await db.exec(read("../remove_demo.sql"));
-});
-await test("seed can be loaded again after removal", async () => {
-  await db.exec(read("../seed_demo.sql"));
-  eq((await db.query(`select count(*)::int n from customers where is_demo`)).rows[0].n, 60);
-  await db.exec(read("../remove_demo.sql"));
-});
-
+suite("Test 5 · hardening");
 await test("post_merge_hardening.sql blocks direct writes (twice-safe)", async () => {
   await db.exec(read("../post_merge_hardening.sql"));
   await db.exec(read("../post_merge_hardening.sql"));
