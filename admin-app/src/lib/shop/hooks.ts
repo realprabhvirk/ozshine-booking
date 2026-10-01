@@ -10,7 +10,8 @@ export type LiveStatus = "connecting" | "live" | "offline";
 
 // Keeps `load()`'s result fresh: refetches on any booking / invoice / payment
 // change (Supabase Realtime), when this tablet changes something, when the
-// tab comes back into view, and every 60s as a safety net. Chimes when a new
+// tab comes back into view, and every 60s as a safety net (15s while
+// Realtime can't connect). Chimes when a new
 // online request arrives.
 export function useLiveData<T>({
   supabase,
@@ -29,6 +30,10 @@ export function useLiveData<T>({
 }) {
   const [data, setData] = useState<T>(initial);
   const [status, setStatus] = useState<LiveStatus>("connecting");
+  const liveRef = useRef(false);
+  useEffect(() => {
+    liveRef.current = status === "live";
+  }, [status]);
   const [error, setError] = useState<unknown>(null);
   const [refreshedAt, setRefreshedAt] = useState<number>(() => Date.now());
   const { settings } = useShop();
@@ -102,7 +107,15 @@ export function useLiveData<T>({
     };
     window.addEventListener(BOOKINGS_CHANGED, onLocal);
     document.addEventListener("visibilitychange", onVisible);
-    const poll = window.setInterval(() => void refresh(), 60_000);
+    // Safety net: every 60s, or every 15s while live updates can't connect
+    // (some networks block the websocket) so the board still keeps up.
+    let lastPoll = Date.now();
+    const poll = window.setInterval(() => {
+      const gap = liveRef.current ? 60_000 : 15_000;
+      if (Date.now() - lastPoll < gap - 500) return;
+      lastPoll = Date.now();
+      void refresh();
+    }, 15_000);
 
     return () => {
       supabase.removeChannel(ch);

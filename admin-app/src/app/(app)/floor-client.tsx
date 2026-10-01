@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BellRing, CalendarCheck, Car, ChevronDown, CircleDollarSign, Inbox, PlusCircle, Sparkles, Wallet } from "lucide-react";
 import { cn } from "@/lib/core/cn";
 import { formatCents, toCents, sumCents } from "@/lib/core/money";
@@ -16,11 +16,12 @@ import { useLiveData, useNow, type LiveStatus } from "@/lib/shop/hooks";
 import { useBookingPanel } from "@/lib/shop/use-booking-panel";
 import { liveInvoice, type BoardBooking, type DashboardStats } from "@/lib/shop/types";
 import { errorMessage } from "@/lib/core/errors";
+import { playAlertSound } from "@/lib/alert-sound";
 
 type FloorData = { bookings: BoardBooking[]; stats: DashboardStats };
 
 export function LiveDot({ status }: { status: LiveStatus }) {
-  const label = status === "live" ? "Live" : status === "connecting" ? "Connecting…" : "Reconnecting…";
+  const label = status === "live" ? "Live" : status === "connecting" ? "Connecting…" : "Updating every 15s";
   return (
     <span className="inline-flex items-center gap-2 text-sm font-medium text-fg-muted" role="status">
       <span className="relative flex size-2.5">
@@ -53,7 +54,7 @@ function EmptyColumn({ text }: { text: string }) {
 }
 
 export function FloorClient({ initial }: { initial: FloorData }) {
-  const { supabase, staff, bays } = useShop();
+  const { supabase, staff, bays, settings } = useShop();
   const panel = useBookingPanel();
   const now = useNow(30_000);
   const [showDone, setShowDone] = useState(false);
@@ -71,6 +72,18 @@ export function FloorClient({ initial }: { initial: FloorData }) {
     channel: "floor",
     chime: true,
   });
+
+  // Without live updates the chime can't come from the database event, so
+  // chime when a refresh turns up an online request we haven't seen yet.
+  const seenPending = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const ids = data.bookings.filter((b) => b.status === "pending").map((b) => b.id);
+    const seen = seenPending.current;
+    if (seen && status !== "live" && ids.some((id) => !seen.has(id))) {
+      playAlertSound(settings?.alert_sound ?? "chime", Number(settings?.alert_volume ?? 0.6));
+    }
+    seenPending.current = new Set(ids);
+  }, [data.bookings, status, settings?.alert_sound, settings?.alert_volume]);
 
   const today = todayISO(now);
   const groups = useMemo(() => {
